@@ -63,23 +63,6 @@ Asegúrate de tener al menos un usuario registrado en la tabla `usuarios`. Puede
 
 ## 🗂 Estructura general
 
-```bash
-BiblioPoas/
-├── app/
-│   ├── config/
-│   ├── core/
-│   ├── controllers/
-│   ├── models/
-│   └── modules/
-│       ├── auth/
-│       ├── dashboard/
-│       ├── usuarios/
-│       ├── clientes/
-│       ├── libros/
-│       └── tiquetes/
-├── public/
-│   └── index.php
-```
 
 ---
 
