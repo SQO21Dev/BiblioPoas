@@ -1,0 +1,18 @@
+# Sistemas operativos
+.DS_Store
+Thumbs.db
+
+# Editor/IDE
+.vscode/
+.idea/
+
+# Cachés / builds (por si luego agregamos bundlers)
+dist/
+build/
+.cache/
+node_modules/
+
+# Archivos temporales
+*.log
+*.tmp
+*.swp
