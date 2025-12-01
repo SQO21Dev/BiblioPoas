@@ -1,90 +1,70 @@
-# 📚 BiblioPoás – Sistema de Gestión Bibliotecaria Comunitaria
+# 📚 BiblioPoás  
+Sistema de gestión bibliotecaria — Préstamos, libros, clientes y control administrativo.
 
-Este proyecto es una aplicación web modular desarrollada en **PHP puro** bajo arquitectura **MVC personalizada**, pensada para gestionar bibliotecas comunitarias. Permite manejar usuarios, clientes, libros y préstamos (tiquetes), así como generar reportes y realizar búsquedas dinámicas.
+BiblioPoás es una aplicación web desarrollada en **PHP 8**, **MVC ligero**, **Bootstrap 5**, **MySQL** y **SweetAlert2**, diseñada específicamente para la Biblioteca Pública Semioficial de San Rafael de Poás.  
+El sistema permite administrar préstamos (tiquetes), libros, clientes y registro de actividad mediante un módulo completo de auditoría.
 
 ---
 
-## 🧰 Requisitos para ejecutar el proyecto
+## 🚀 Características principales
 
-Antes de ejecutar este sistema, asegúrese de tener lo siguiente:
+### ✔ Gestión de préstamos (Tiquetes)
+- Crear, editar y cerrar préstamos.
+- Validación automática del estado del libro (Disponible / Prestado).
+- Actualización rápida desde el Dashboard mediante modal.
+- Control de fechas de préstamo y devolución.
+- Categorización por edad según formatos de la biblioteca.
+- Observaciones y datos del cliente integrados.
 
-### 🔧 Software necesario
-- **PHP ≥ 8.0**
-- **Servidor web local** (recomendado: `php -S localhost:8000`)
+### ✔ Gestión de libros
+- Registro completo: título, autor, signatura, códigos, editorial, etc.
+- Control de estado (Disponible / Prestado).
+- Búsqueda y filtros.
+
+### ✔ Gestión de clientes
+- Datos personales, teléfono y dirección.
+- Autocompletado para creación rápida de tiquetes.
+
+### ✔ Dashboard avanzado
+- KPIs automáticos.
+- Lista de tiquetes activos y vencidos.
+- Exportación CSV y XLSX.
+- Modal rápido para editar la fecha de vencimiento o cerrar el tiquete.
+
+### ✔ Auditoría (Logs)
+- Registro automático de acciones:
+  - Crear / editar / eliminar libros
+  - Crear / editar / eliminar clientes
+  - Crear / cerrar / actualizar tiquetes
+  - Login y logout
+- Incluye usuario, rol, fecha y descripción del evento.
+
+---
+
+## 🛠 Tecnologías utilizadas
+
+- **PHP 8.1+** (servidor embebido o Apache)
 - **MySQL / MariaDB**
-- **Navegador moderno** (Chrome, Firefox, etc.)
-- **Visual Studio Code** u otro editor (opcional)
-
-### 📦 Librerías externas requeridas
-El sistema actualmente **no requiere Composer** ni frameworks externos de PHP. Todo el código es modular y funcional de forma independiente.
-
----
-
-## ⚙️ Instalación y configuración
-
-1. **Clonar el repositorio**
-   ```bash
-   git clone https://github.com/tu_usuario/BiblioPoas.git
-   cd BiblioPoas
-   ```
-
-2. **Configurar base de datos**
-
-   - Crear una base de datos llamada `bibliopoas`
-   - Importar el archivo `.sql` correspondiente (aún no incluido en este repositorio, asegúrate de tener uno con las tablas `usuarios`, `clientes`, `libros`, `tiquetes`, etc.)
-
-3. **Editar configuración de base de datos**
-
-   Abre el archivo `app/config/config.php` y ajusta tus credenciales:
-
-   ```php
-   $host = 'localhost';
-   $db = 'bibliopoas';
-   $user = 'root';
-   $pass = 'root';
-   ```
-
-4. **Iniciar servidor local**
-   Desde la raíz del proyecto:
-
-   ```bash
-   php -S localhost:8000 -t public
-   ```
-
-   Luego abre tu navegador y visita: [http://localhost:8000](http://localhost:8000)
+- **HTML5 + CSS3**
+- **Bootstrap 5**
+- **JavaScript (vanilla)**
+- **SweetAlert2**
+- **MVC ligero escrito a mano**
+- **Zorin OS / Linux Mint / Windows compatible**
 
 ---
 
-## 🔐 Acceso al sistema
+## 🔧 Requisitos
 
-Asegúrate de tener al menos un usuario registrado en la tabla `usuarios`. Puedes hacerlo manualmente en la base de datos o mediante el formulario de login (si habilitado).
-
----
-
-## 🗂 Estructura general
-
-
----
-
-## ✅ Funcionalidades actuales
-
-- CRUD de Usuarios, Clientes y Libros
-- Gestión de préstamos (Tiquetes)
-- Vista principal de Dashboard con resumen de préstamos activos
-- Validaciones y mensajes Toast modernos
-- Exportación a CSV y Excel
+- PHP 8.1+
+- Extensión `pdo_mysql`
+- MySQL 5.7+ o MariaDB 10+
+- Composer (opcional)
+- Apache o PHP built-in server
 
 ---
 
-## 🚧 En desarrollo
+## ▶ Cómo ejecutarlo (modo rápido)
 
-- Módulo completo de historial de tiquetes
-- Gráficos e indicadores en el Dashboard
-- Logs de auditoría por acción de usuario
-- Permisos por rol
-
----
-
-## 📄 Licencia
-
-Este sistema fue desarrollado como parte de un **Trabajo Comunal Universitario** (TCU). El uso está orientado a fines educativos y comunitarios.
+```bash
+php -S localhost:8000 -t public
