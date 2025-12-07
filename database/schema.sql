@@ -5,18 +5,21 @@ USE biblio_poas;
 SET NAMES utf8mb4;
 
 -- USUARIOS
+-- USUARIOS
 DROP TABLE IF EXISTS usuarios;
 CREATE TABLE usuarios (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   usuario VARCHAR(50) NOT NULL UNIQUE,
   nombre  VARCHAR(120) NOT NULL,
   correo  VARCHAR(120) NOT NULL UNIQUE,
-  contrasena VARCHAR(255) NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
   rol ENUM('admin','empleado') NOT NULL DEFAULT 'empleado',
+  estado ENUM('activo','inactivo') NOT NULL DEFAULT 'activo',
   contrasena_temporal VARCHAR(255) DEFAULT NULL,
-  creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  creado_en    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   modificado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
+
 
 -- CLIENTES
 DROP TABLE IF EXISTS clientes;
@@ -80,7 +83,14 @@ CREATE TABLE tiquetes (
   signatura VARCHAR(100) DEFAULT NULL,
   fecha_prestamo DATETIME NOT NULL,
   fecha_devolucion DATETIME DEFAULT NULL,
-  categoria_edad NOT NULL,
+  categoria_edad ENUM(
+    'OP','AP',        -- 0 a 5 años
+    'O','A',          -- 6 a 12 años
+    'HJ','MJ',        -- 13 a 17 años
+    'HJU','MJU',      -- 18 a 35 años
+    'HA','MA',        -- 36 a 64 años
+    'HAM','NAM'       -- 65+ años
+  ) NOT NULL,
   estado ENUM('En Prestamo','Atrasado','Devuelto') NOT NULL DEFAULT 'En Prestamo',
   observaciones VARCHAR(255) DEFAULT NULL,
   usuario_registra_id INT UNSIGNED NOT NULL,            -- FK -> usuarios

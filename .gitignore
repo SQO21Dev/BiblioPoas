@@ -16,3 +16,6 @@ node_modules/
 *.log
 *.tmp
 *.swp
+
+# Archivos locales y sensibles
+app/config/config.local.php
