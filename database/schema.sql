@@ -89,7 +89,7 @@ CREATE TABLE tiquetes (
     'HJ','MJ',        -- 13 a 17 años
     'HJU','MJU',      -- 18 a 35 años
     'HA','MA',        -- 36 a 64 años
-    'HAM','NAM'       -- 65+ años
+    'HAM','NAM'
   ) NOT NULL,
   estado ENUM('En Prestamo','Atrasado','Devuelto') NOT NULL DEFAULT 'En Prestamo',
   observaciones VARCHAR(255) DEFAULT NULL,
