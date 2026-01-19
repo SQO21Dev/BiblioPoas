@@ -42,7 +42,7 @@ final class Tiquete
     /**
      * KPIs básicos para la vista (total, activos, vencidos).
      * Activos = estado = 'En Prestamo'
-     * Vencidos = estado = 'Retrasado'
+     * Vencidos = estado = 'Atrasado'
      */
     public static function stats(): array
     {
@@ -50,7 +50,7 @@ final class Tiquete
 
         $total    = (int)$pdo->query("SELECT COUNT(*) FROM tiquetes")->fetchColumn();
         $activos  = (int)$pdo->query("SELECT COUNT(*) FROM tiquetes WHERE estado = 'En Prestamo'")->fetchColumn();
-        $vencidos = (int)$pdo->query("SELECT COUNT(*) FROM tiquetes WHERE estado = 'Retrasado'")->fetchColumn();
+        $vencidos = (int)$pdo->query("SELECT COUNT(*) FROM tiquetes WHERE estado = 'Atrasado'")->fetchColumn();
 
         return [
             'total'    => $total,
@@ -88,13 +88,13 @@ final class Tiquete
     }
 
     /**
-     * Lista de libros disponibles para el datalist del modal de tiquetes.
+     * Lista de libros disponibles para el select del modal de tiquetes.
      */
     public static function disponiblesForSelect(): array
     {
         $pdo = DB::pdo();
         $sql = "
-            SELECT id, titulo, autor
+            SELECT id, titulo, autor, volumen
             FROM libros
             WHERE estado = 'Disponible'
             ORDER BY titulo ASC
@@ -150,8 +150,7 @@ final class Tiquete
             $stmt->execute([':id' => $libroId]);
         }
 
-        $count = (int)$stmt->fetchColumn();
-        return $count > 0;
+        return ((int)$stmt->fetchColumn()) > 0;
     }
 
     /**
@@ -159,9 +158,7 @@ final class Tiquete
      */
     public static function marcarLibroPrestado(int $libroId): void
     {
-        if ($libroId <= 0) {
-            return;
-        }
+        if ($libroId <= 0) return;
 
         $stmt = DB::pdo()->prepare("UPDATE libros SET estado = 'Prestado' WHERE id = :id");
         $stmt->execute([':id' => $libroId]);
@@ -173,12 +170,35 @@ final class Tiquete
      */
     public static function marcarLibroDisponible(int $libroId): void
     {
-        if ($libroId <= 0) {
-            return;
-        }
+        if ($libroId <= 0) return;
 
         $stmt = DB::pdo()->prepare("UPDATE libros SET estado = 'Disponible' WHERE id = :id");
         $stmt->execute([':id' => $libroId]);
+    }
+
+    /**
+     * OPCION 1 (lazy update):
+     * Marca automáticamente como "Atrasado" los tiquetes que:
+     * - están en estado "En Prestamo"
+     * - y su fecha_devolucion ya venció (<= NOW())
+     *
+     * @return int Cantidad de filas afectadas.
+     */
+    public static function marcarAtrasados(): int
+    {
+        $pdo = DB::pdo();
+
+        $stmt = $pdo->prepare("
+            UPDATE tiquetes
+               SET estado = 'Atrasado',
+                   modificado_en = NOW()
+             WHERE estado = 'En Prestamo'
+               AND fecha_devolucion IS NOT NULL
+               AND fecha_devolucion <= NOW()
+        ");
+
+        $stmt->execute();
+        return (int)$stmt->rowCount();
     }
 
     /* ==========================
@@ -190,12 +210,14 @@ final class Tiquete
      *
      * - Cambia fecha de vencimiento.
      * - Si $cerrar = true, pasa el tiquete a 'Devuelto' y libera el libro.
+     *
+     * Nota: si NO se cierra y la fecha ya venció, lo marca como Atrasado.
+     * Si estaba Atrasado y la nueva fecha queda futura, lo regresa a En Prestamo.
      */
     public static function quickUpdateDesdeDashboard(int $id, string $fechaDevolucion, bool $cerrar): bool
     {
         $pdo = DB::pdo();
 
-        // Normalizar valor tipo datetime-local a 'Y-m-d H:i:s'
         $value = trim($fechaDevolucion);
         if ($value === '') {
             throw new \RuntimeException('Fecha de vencimiento vacía.');
@@ -215,7 +237,6 @@ final class Tiquete
         $pdo->beginTransaction();
 
         try {
-            // Bloqueamos el tiquete
             $stmt = $pdo->prepare("SELECT id, libro_id, estado FROM tiquetes WHERE id = :id FOR UPDATE");
             $stmt->execute([':id' => $id]);
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -227,9 +248,22 @@ final class Tiquete
             $libroId      = (int)$row['libro_id'];
             $estadoActual = (string)$row['estado'];
 
-            $nuevoEstado = $cerrar ? 'Devuelto' : $estadoActual;
+            $now = date('Y-m-d H:i:s');
 
-            // Actualizar tiquete
+            if ($cerrar) {
+                $nuevoEstado = 'Devuelto';
+            } else {
+                $nuevoEstado = $estadoActual;
+
+                if ($estadoActual === 'En Prestamo' && $fechaNorm <= $now) {
+                    $nuevoEstado = 'Atrasado';
+                }
+
+                if ($estadoActual === 'Atrasado' && $fechaNorm > $now) {
+                    $nuevoEstado = 'En Prestamo';
+                }
+            }
+
             $up = $pdo->prepare("
                 UPDATE tiquetes
                    SET fecha_devolucion = :fec,
@@ -243,7 +277,6 @@ final class Tiquete
                 ':id'     => $id,
             ]);
 
-            // Si se cierra, liberar el libro
             if ($cerrar && $libroId > 0) {
                 $upLibro = $pdo->prepare("
                     UPDATE libros
@@ -256,7 +289,6 @@ final class Tiquete
 
             $pdo->commit();
             return true;
-
         } catch (\Throwable $e) {
             $pdo->rollBack();
             throw $e;
@@ -293,7 +325,6 @@ final class Tiquete
             $data['codigo'] = self::nextCodigo();
         }
 
-        // Por seguridad, si no viene categoría, usar un valor por defecto válido del ENUM nuevo
         if (empty($data['categoria_edad'])) {
             $data['categoria_edad'] = 'HA';
         }
@@ -382,6 +413,8 @@ final class Tiquete
             return;
         }
 
+        $fields[] = "modificado_en = NOW()";
+
         $sql  = "UPDATE tiquetes SET " . implode(', ', $fields) . " WHERE id = :id";
         $stmt = DB::pdo()->prepare($sql);
         $stmt->execute($params);
@@ -398,10 +431,34 @@ final class Tiquete
 
     /**
      * Listado crudo para exportar (CSV / Excel simple).
+     * Puede filtrar opcionalmente por fecha_prestamo entre $fromDate y $toDate (YYYY-MM-DD).
      */
-    public static function allForExport(): array
+    public static function allForExport(?string $fromDate = null, ?string $toDate = null): array
     {
-        $sql = "SELECT * FROM tiquetes ORDER BY creado_en DESC";
-        return DB::pdo()->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+        $pdo    = DB::pdo();
+        $sql    = "SELECT * FROM tiquetes";
+        $where  = [];
+        $params = [];
+
+        if ($fromDate) {
+            $where[]         = 'fecha_prestamo >= :from';
+            $params[':from'] = $fromDate . ' 00:00:00';
+        }
+
+        if ($toDate) {
+            $where[]       = 'fecha_prestamo <= :to';
+            $params[':to'] = $toDate . ' 23:59:59';
+        }
+
+        if ($where) {
+            $sql .= ' WHERE ' . implode(' AND ', $where);
+        }
+
+        $sql .= ' ORDER BY creado_en DESC';
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 }

@@ -15,6 +15,15 @@ class TiquetesController extends Controller
     {
         $this->requireAuth();
 
+        /**
+         * OPCION 1 (lazy update):
+         * Cada vez que se carga /tiquetes, sincronizamos los vencidos:
+         * - Si está "En Prestamo" y fecha_devolucion ya pasó => "Atrasado"
+         *
+         * Nota: Este método debe existir en el modelo Tiquete.
+         */
+        Tiquete::marcarAtrasados();
+
         $tiquetes = Tiquete::all();
         $stats    = Tiquete::stats();
 
@@ -74,13 +83,13 @@ class TiquetesController extends Controller
         }
 
         // Normalizar estado: debe coincidir con ENUM de la BD
-        $estadosValidos = ['En Prestamo', 'Devuelto', 'Retrasado'];
+        $estadosValidos = ['En Prestamo', 'Devuelto', 'Atrasado'];
         if (!in_array($estadoIn, $estadosValidos, true)) {
             $this->flashError('Estado inválido.');
             $this->redirect('/tiquetes');
         }
 
-        // ✅ Nuevas categorías de edad
+        // Categorías de edad válidas
         $edadesValidas = [
             'OP', 'AP',   // 0–5
             'O',  'A',    // 6–12
@@ -142,7 +151,7 @@ class TiquetesController extends Controller
         }
 
         $this->flashSuccess('Tiquete creado correctamente.');
-        $this->redirect('/tiquetes');
+        $this->redirect('/dashboard');
     }
 
     /**
@@ -258,6 +267,7 @@ class TiquetesController extends Controller
             'fecha_prestamo'   => $fechaPrestamo,
             'fecha_devolucion' => $fechaDevolucion,
             'observaciones'    => $observaciones !== '' ? $observaciones : null,
+            'nombre_biblioteca'=> $tiqueteAnterior['nombre_biblioteca'] ?? null,
         ]);
 
         // Sincronizar estado del libro según el estado del tiquete
@@ -350,13 +360,16 @@ class TiquetesController extends Controller
     }
 
     /**
-     * Exportar CSV.
+     * Exportar CSV (respetando filtros de fecha opcionales: from / to).
      */
     public function exportCsv(): void
     {
         $this->requireAuth();
 
-        $rows = Tiquete::allForExport();
+        $from = $this->normalizeDateFilter($this->input('from'));
+        $to   = $this->normalizeDateFilter($this->input('to'));
+
+        $rows = Tiquete::allForExport($from, $to);
 
         header('Content-Type: text/csv; charset=utf-8');
         header('Content-Disposition: attachment; filename=tiquetes.csv');
@@ -417,7 +430,10 @@ class TiquetesController extends Controller
     {
         $this->requireAuth();
 
-        $rows = Tiquete::allForExport();
+        $from = $this->normalizeDateFilter($this->input('from'));
+        $to   = $this->normalizeDateFilter($this->input('to'));
+
+        $rows = Tiquete::allForExport($from, $to);
 
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment; filename=tiquetes.xlsx');
@@ -498,5 +514,27 @@ class TiquetesController extends Controller
         }
 
         return date('Y-m-d H:i:s', $ts);
+    }
+
+    /**
+     * Normaliza un filtro de fecha (YYYY-MM-DD). Si no cumple formato, devuelve null.
+     */
+    private function normalizeDateFilter(?string $value): ?string
+    {
+        $value = trim((string)$value);
+        if ($value === '') {
+            return null;
+        }
+
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+            return null;
+        }
+
+        $dt = \DateTime::createFromFormat('Y-m-d', $value);
+        if (!$dt || $dt->format('Y-m-d') !== $value) {
+            return null;
+        }
+
+        return $value;
     }
 }
