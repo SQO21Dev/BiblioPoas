@@ -35,7 +35,7 @@
         <button class="btn btn-outline-secondary d-none d-md-inline-flex" id="btnExportXlsx" title="Exportar Excel">
           <i class="fa-regular fa-file-excel me-2"></i> Excel
         </button>
-        <button class="btn btn-coral d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#clientModal">
+        <button class="btn btn-peach d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#clientModal">
           <i class="fa-solid fa-user-plus"></i> Agregar cliente
         </button>
       </div>
@@ -160,32 +160,6 @@
                 </tr>
               <?php endforeach; ?>
             <?php else: ?>
-              <!-- Filas demo si aún no hay datos -->
-              <tr data-row>
-                <td class="px-3 py-3 fw-semibold">Ana Rodríguez</td>
-                <td class="px-3 py-3 text-muted">1-2345-0678</td>
-                <td class="px-3 py-3 text-muted">8888-1111</td>
-                <td class="px-3 py-3 text-muted">ana.rodriguez@example.com</td>
-                <td class="px-3 py-3"><span class="badge-state-active">Activo</span></td>
-                <td class="px-3 py-3">
-                  <div class="d-flex gap-2">
-                    <button
-                      class="btn-action-edit"
-                      title="Editar"
-                      data-bs-toggle="modal"
-                      data-bs-target="#clientModal"
-                      data-client='{"id":1,"nombre":"Ana Rodríguez","cedula":"1-2345-0678","telefono":"8888-1111","correo":"ana.rodriguez@example.com","direccion":"San Rafael, Poás","estado":"activo"}'>
-                      <i class="fa-solid fa-pen-to-square"></i>
-                    </button>
-                    <button
-                      class="btn-action-del"
-                      title="Eliminar"
-                      onclick="onDeleteClient(1,'Ana Rodríguez')">
-                      <i class="fa-solid fa-trash-can"></i>
-                    </button>
-                  </div>
-                </td>
-              </tr>
             <?php endif; ?>
           </tbody>
         </table>

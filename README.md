@@ -1,70 +1,113 @@
 # 📚 BiblioPoás  
 Sistema de gestión bibliotecaria — Préstamos, libros, clientes y control administrativo.
 
-BiblioPoás es una aplicación web desarrollada en **PHP 8**, **MVC ligero**, **Bootstrap 5**, **MySQL** y **SweetAlert2**, diseñada específicamente para la Biblioteca Pública Semioficial de San Rafael de Poás.  
-El sistema permite administrar préstamos (tiquetes), libros, clientes y registro de actividad mediante un módulo completo de auditoría.
+**BiblioPoás** es una aplicación web desarrollada en **PHP 8 (MVC ligero)**, **MySQL**, **Bootstrap 5** y **JavaScript**, diseñada específicamente para la **Biblioteca Pública Semioficial de San Rafael de Poás**.
+
+El sistema permite administrar **préstamos (tiquetes)**, **libros**, **clientes**, visualizar métricas en tiempo real mediante un **Dashboard**, y mantener un control administrativo claro y ordenado.
+
+La aplicación puede ejecutarse como una **app tipo escritorio** en **Windows y Linux**, usando el servidor embebido de PHP.
 
 ---
 
 ## 🚀 Características principales
 
 ### ✔ Gestión de préstamos (Tiquetes)
-- Crear, editar y cerrar préstamos.
-- Validación automática del estado del libro (Disponible / Prestado).
-- Actualización rápida desde el Dashboard mediante modal.
-- Control de fechas de préstamo y devolución.
-- Categorización por edad según formatos de la biblioteca.
-- Observaciones y datos del cliente integrados.
+- Crear, editar, cerrar y eliminar tiquetes.
+- Control automático del estado del libro:
+  - **Disponible**
+  - **Prestado**
+  - **Retrasado**
+  - **Devuelto**
+- Validación para evitar préstamos duplicados del mismo libro.
+- Fechas de préstamo y devolución con validación.
+- Categorización por edad (OP, AP, O, A, HJ, MJ, etc.).
+- Observaciones y datos de contacto del cliente.
+- Actualización rápida desde el Dashboard (modal).
+
+---
 
 ### ✔ Gestión de libros
-- Registro completo: título, autor, signatura, códigos, editorial, etc.
-- Control de estado (Disponible / Prestado).
-- Búsqueda y filtros.
+- Registro completo de libros:
+  - Título
+  - Autor
+  - Volumen
+  - ISBN
+  - Clasificación Dewey
+  - Categoría
+  - Cantidad
+- Control de estado automático (Disponible / Prestado).
+- Listado optimizado y ordenado.
+
+---
 
 ### ✔ Gestión de clientes
-- Datos personales, teléfono y dirección.
-- Autocompletado para creación rápida de tiquetes.
+- Registro de clientes con:
+  - Nombre
+  - Teléfono
+  - Dirección
+- Autocompletado en formularios de tiquetes.
 
-### ✔ Dashboard avanzado
-- KPIs automáticos.
-- Lista de tiquetes activos y vencidos.
-- Exportación CSV y XLSX.
-- Modal rápido para editar la fecha de vencimiento o cerrar el tiquete.
+---
 
-### ✔ Auditoría (Logs)
-- Registro automático de acciones:
-  - Crear / editar / eliminar libros
-  - Crear / editar / eliminar clientes
-  - Crear / cerrar / actualizar tiquetes
-  - Login y logout
-- Incluye usuario, rol, fecha y descripción del evento.
+### ✔ Dashboard interactivo
+- KPIs automáticos:
+  - Total de libros
+  - Tiquetes activos
+  - Clientes
+  - Tiquetes vencidos
+- Gráficos dinámicos (Chart.js):
+  - Distribución por categoría de edad
+  - Tiquetes por estado
+- Filtros por rango de fechas.
+- Actualización automática de datos al abrir la vista.
+- Tabla de tiquetes críticos (activos y vencidos).
+
+---
+
+### ✔ Exportaciones
+- Exportación de tiquetes a:
+  - **CSV**
+  - **Excel (XLSX básico)**
+- Respeta filtros de fecha aplicados.
+
+---
+
+### ✔ Seguridad y control
+- Protección CSRF en formularios.
+- Validación estricta de datos.
+- Manejo correcto de estados ENUM.
+- Código organizado bajo arquitectura MVC ligera.
 
 ---
 
 ## 🛠 Tecnologías utilizadas
 
-- **PHP 8.1+** (servidor embebido o Apache)
+- **PHP 8.1+**
 - **MySQL / MariaDB**
-- **HTML5 + CSS3**
+- **PDO (PDO_MYSQL)**
+- **HTML5 / CSS3**
 - **Bootstrap 5**
-- **JavaScript (vanilla)**
+- **JavaScript (Vanilla)**
 - **SweetAlert2**
-- **MVC ligero escrito a mano**
-- **Zorin OS / Linux Mint / Windows compatible**
+- **Chart.js**
+- **MVC ligero (custom)**
+- Compatible con **Windows** y **Linux (Zorin OS, Mint, Ubuntu)**
 
 ---
 
 ## 🔧 Requisitos
 
-- PHP 8.1+
-- Extensión `pdo_mysql`
+- PHP 8.1 o superior
+- Extensión PHP: `pdo_mysql`
 - MySQL 5.7+ o MariaDB 10+
-- Composer (opcional)
-- Apache o PHP built-in server
+- Navegador moderno (Chrome, Edge, Firefox)
+- (Opcional) XAMPP o similar para MySQL
 
 ---
 
-## ▶ Cómo ejecutarlo (modo rápido)
+## ▶ Ejecución rápida (modo desarrollo)
+
+Desde la raíz del proyecto:
 
 ```bash
 php -S localhost:8000 -t public

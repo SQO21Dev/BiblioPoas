@@ -159,6 +159,16 @@ html.dark .text-subtle { color: var(--subtle-text-dark); }
   padding: 1rem;
 }
 
+/* Dashboard – tamaño de los gráficos */
+.chart-card {
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.chart-card canvas {
+  max-height: 260px;
+}
+
 /* Contenido con margen izquierdo = ancho sidebar */
 .main-content{ margin-left: 256px; padding: 2rem; }
 

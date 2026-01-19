@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="es" class="light">
+
 <head>
   <meta charset="utf-8">
   <title>BiblioPoás · Dashboard</title>
@@ -15,9 +16,16 @@
   <script src="https://kit.fontawesome.com/5152164a0e.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
+  <!-- Chart.js para gráficos -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Tom Select (para SELECT con buscador) -->
+  <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
+
   <!-- Estilos propios -->
   <link rel="stylesheet" href="/assets/css/style.css">
 </head>
+
 <body class="dashboard-root">
 
   <!-- Sidebar dinámico -->
@@ -91,6 +99,102 @@
       </div>
     </section>
 
+    <!-- FILTRO POR FECHAS -->
+    <section class="mb-3">
+      <form method="get" action="/dashboard" class="row g-2 align-items-end">
+        <div class="col-12 col-md-3">
+          <label for="f_desde" class="form-label small mb-1">Desde (fecha de préstamo)</label>
+          <input
+            type="date"
+            id="f_desde"
+            name="from"
+            class="form-control"
+            value="<?= htmlspecialchars($fromFilter ?? '', ENT_QUOTES, 'UTF-8') ?>">
+        </div>
+        <div class="col-12 col-md-3">
+          <label for="f_hasta" class="form-label small mb-1">Hasta</label>
+          <input
+            type="date"
+            id="f_hasta"
+            name="to"
+            class="form-control"
+            value="<?= htmlspecialchars($toFilter ?? '', ENT_QUOTES, 'UTF-8') ?>">
+        </div>
+
+        <div class="col-12 col-md-6 d-flex gap-2 mt-2 mt-md-0 align-items-center">
+          <button type="submit" class="btn btn-outline-secondary">
+            Aplicar filtro
+          </button>
+
+          <?php if (!empty($fromFilter) || !empty($toFilter)): ?>
+            <a href="/dashboard" class="btn btn-link">
+              Quitar filtro
+            </a>
+            <span class="small text-muted">
+              Filtro activo
+              <?= $fromFilter ? ('desde ' . htmlspecialchars($fromFilter, ENT_QUOTES, 'UTF-8')) : '' ?>
+              <?= ($fromFilter && $toFilter) ? ' · ' : '' ?>
+              <?= $toFilter ? ('hasta ' . htmlspecialchars($toFilter, ENT_QUOTES, 'UTF-8')) : '' ?>
+            </span>
+          <?php else: ?>
+            <a href="/dashboard" class="btn btn-link">
+              Quitar filtro
+            </a>
+          <?php endif; ?>
+
+          <?php if (($totalPeriodoTiquetes ?? 0) > 0): ?>
+            <div class="ms-auto small text-muted d-none d-md-block">
+              Tiquetes en el período: <strong><?= (int)$totalPeriodoTiquetes ?></strong>
+            </div>
+          <?php endif; ?>
+        </div>
+      </form>
+    </section>
+
+    <!-- GRÁFICOS -->
+    <section class="row g-3 mb-4">
+      <!-- Pie chart por categoría de edad -->
+      <div class="col-12 col-lg">
+        <div class="kpi-card chart-card p-4 h-100">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="m-0">Distribución por categoría de edad</h6>
+            <small class="text-muted">
+              Período:
+              <?php if ($fromFilter || $toFilter): ?>
+                <?= htmlspecialchars($fromFilter ?? '...', ENT_QUOTES, 'UTF-8') ?>
+                –
+                <?= htmlspecialchars($toFilter ?? '...', ENT_QUOTES, 'UTF-8') ?>
+              <?php else: ?>
+                Mes actual
+              <?php endif; ?>
+            </small>
+          </div>
+          <canvas id="chartCategoriaEdad"></canvas>
+          <?php if (empty($chartCategoria)): ?>
+            <p class="text-muted small mt-3 mb-0">
+              No hay tiquetes registrados en el período seleccionado.
+            </p>
+          <?php endif; ?>
+        </div>
+      </div>
+
+      <!-- Gráfico adicional: estados -->
+      <div class="col-12 col-lg">
+        <div class="kpi-card chart-card p-4 h-100">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="m-0">Tiquetes por estado</h6>
+            <small class="text-muted">Mismo período</small>
+          </div>
+          <canvas id="chartEstados"></canvas>
+          <?php if (empty($chartEstados)): ?>
+            <p class="text-muted small mt-3 mb-0">
+              No hay tiquetes registrados en el período seleccionado.
+            </p>
+          <?php endif; ?>
+        </div>
+      </div>
+    </section>
+
     <!-- Tiquetes activos y vencidos -->
     <div class="block-users">
       <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
@@ -119,19 +223,19 @@
             <?php if (!empty($tiquetes) && is_array($tiquetes)): ?>
               <?php foreach ($tiquetes as $t): ?>
                 <?php
-                  $id       = (int)($t['id'] ?? 0);
-                  $codigo   = $t['codigo'] ?? '';
-                  $titulo   = $t['titulo'] ?? '';
-                  $cliente  = $t['nombre_cliente'] ?? '';
-                  $fecDev   = $t['fecha_devolucion'] ?? '';
-                  $estado   = $t['estado'] ?? 'En Prestamo';
+                $id       = (int)($t['id'] ?? 0);
+                $codigo   = $t['codigo'] ?? '';
+                $titulo   = $t['titulo'] ?? '';
+                $cliente  = $t['nombre_cliente'] ?? '';
+                $fecDev   = $t['fecha_devolucion'] ?? '';
+                $estado   = $t['estado'] ?? 'En Prestamo';
 
-                  $badgeEstado = '';
-                  if ($estado === 'Atrasado') {
-                    $badgeEstado = '<span class="badge-state-inactive ms-2">Vencido</span>';
-                  } elseif ($estado === 'En Prestamo') {
-                    $badgeEstado = '<span class="badge-state-active ms-2">Activo</span>';
-                  }
+                $badgeEstado = '';
+                if ($estado === 'Atrasado') {
+                  $badgeEstado = '<span class="badge-state-inactive ms-2">Vencido</span>';
+                } elseif ($estado === 'En Prestamo') {
+                  $badgeEstado = '<span class="badge-state-active ms-2">Activo</span>';
+                }
                 ?>
                 <tr>
                   <td class="px-3 py-3 fw-semibold">
@@ -156,13 +260,13 @@
                         data-bs-toggle="modal"
                         data-bs-target="#ticketQuickModal"
                         data-ticket='<?= json_encode([
-                          'id'               => $id,
-                          'codigo'           => $codigo,
-                          'titulo'           => $titulo,
-                          'cliente'          => $cliente,
-                          'fecha_devolucion' => $fecDev,
-                          'estado'           => $estado,
-                        ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>'>
+                                        'id'               => $id,
+                                        'codigo'           => $codigo,
+                                        'titulo'           => $titulo,
+                                        'cliente'          => $cliente,
+                                        'fecha_devolucion' => $fecDev,
+                                        'estado'           => $estado,
+                                      ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>'>
                         <i class="fa-solid fa-up-right-from-square"></i>
                       </button>
                     </div>
@@ -184,7 +288,7 @@
 
   <!-- MODAL CREAR TIQUETE -->
   <div class="modal fade modal-ticket" id="createTicketModal" tabindex="-1"
-       aria-labelledby="createTicketLabel" aria-hidden="true">
+    aria-labelledby="createTicketLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
       <div class="modal-content">
         <div class="modal-header border-0 pb-0">
@@ -197,14 +301,11 @@
             class="needs-validation"
             novalidate
             method="post"
-            action="/tiquetes/create"
-          >
+            action="/tiquetes/create">
             <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrf ?? '', ENT_QUOTES, 'UTF-8') ?>">
-            <!-- estado fijo: En Prestamo -->
             <input type="hidden" name="estado" value="En Prestamo">
 
-            <div class="row g-3">
-              <!-- Cliente -->
+            <div class="row g-3 mb-3">
               <div class="col-12 col-md-6">
                 <label for="tc_cliente" class="form-label">Nombre del cliente</label>
                 <input
@@ -217,8 +318,7 @@
                 <div class="invalid-feedback">Ingresa el nombre del cliente.</div>
               </div>
 
-              <!-- Teléfono -->
-              <div class="col-12 col-md-3">
+              <div class="col-12 col-md-6">
                 <label for="tc_telefono" class="form-label">Teléfono</label>
                 <input
                   id="tc_telefono"
@@ -227,19 +327,19 @@
                   class="form-control"
                   placeholder="Ej. 8888-8888">
               </div>
-
-              <!-- Dirección -->
-              <div class="col-12 col-md-3">
+            </div>
+            <div class="row g-3 mb-3">
+              <div class="col-12">
                 <label for="tc_direccion" class="form-label">Dirección</label>
-                <input
+                <textarea
                   id="tc_direccion"
                   name="direccion"
                   type="text"
                   class="form-control"
-                  placeholder="Provincia, cantón, distrito">
+                  placeholder="Provincia, cantón, distrito"></textarea>
               </div>
-
-              <!-- Libro -->
+            </div>
+            <div class="row g-3 mb-3">
               <div class="col-12 col-md-6">
                 <label for="tc_libro_id" class="form-label">Libro</label>
                 <select
@@ -247,15 +347,24 @@
                   name="libro_id"
                   class="form-select"
                   required>
-                  <option value="" selected disabled>Selecciona un libro disponible…</option>
+                  <option value=""></option>
                   <?php if (!empty($libros) && is_array($libros)): ?>
                     <?php foreach ($libros as $lib): ?>
+                      <?php
+                      $titulo  = (string)($lib['titulo'] ?? '');
+                      $autor   = (string)($lib['autor'] ?? '');
+                      $volumen = (string)($lib['volumen'] ?? '');
+                      $label   = $titulo;
+                      if ($volumen !== '') {
+                        $label .= ' · ' . $volumen;
+                      }
+                      ?>
                       <option
                         value="<?= htmlspecialchars((string)$lib['id'], ENT_QUOTES, 'UTF-8') ?>"
-                        data-titulo="<?= htmlspecialchars($lib['titulo'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
-                        data-autor="<?= htmlspecialchars($lib['autor'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
-                      >
-                        <?= htmlspecialchars(($lib['titulo'] ?? '') . ($lib['autor'] ? ' – ' . $lib['autor'] : ''), ENT_QUOTES, 'UTF-8') ?>
+                        data-titulo="<?= htmlspecialchars($titulo, ENT_QUOTES, 'UTF-8') ?>"
+                        data-autor="<?= htmlspecialchars($autor, ENT_QUOTES, 'UTF-8') ?>"
+                        data-volumen="<?= htmlspecialchars($volumen, ENT_QUOTES, 'UTF-8') ?>">
+                        <?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?>
                       </option>
                     <?php endforeach; ?>
                   <?php endif; ?>
@@ -266,7 +375,6 @@
                 <input type="hidden" id="tc_libro_titulo" name="libro">
               </div>
 
-              <!-- Autor -->
               <div class="col-12 col-md-6">
                 <label for="tc_autor" class="form-label">Autor</label>
                 <input
@@ -274,43 +382,30 @@
                   name="autor"
                   type="text"
                   class="form-control"
-                  placeholder="Se rellenará según el libro (puedes ajustarlo)">
+                  placeholder="">
               </div>
-
-              <!-- Categoría de edad -->
+            </div>
+            <div class="row g-3 mb-3">
               <div class="col-12 col-md-6 col-lg-4">
                 <label for="tc_categoria_edad" class="form-label">Categoría de edad</label>
                 <select id="tc_categoria_edad" name="categoria_edad" class="form-select" required>
                   <option value="" disabled selected>Selecciona...</option>
-
-                  <!-- 0 a 5 años -->
                   <option value="OP">OP – Hombres (0 a 5 años)</option>
                   <option value="AP">AP – Mujeres (0 a 5 años)</option>
-
-                  <!-- 6 a 12 años -->
                   <option value="O">O – Hombres (6 a 12 años)</option>
                   <option value="A">A – Mujeres (6 a 12 años)</option>
-
-                  <!-- 13 a 17 años -->
                   <option value="HJ">HJ – Hombres Jóvenes (13 a 17 años)</option>
                   <option value="MJ">MJ – Mujeres Jóvenes (13 a 17 años)</option>
-
-                  <!-- 18 a 35 años -->
                   <option value="HJU">HJU – Hombres Jóvenes Adultos (18 a 35 años)</option>
                   <option value="MJU">MJU – Mujeres Jóvenes Adultas (18 a 35 años)</option>
-
-                  <!-- 36 a 64 años -->
                   <option value="HA">HA – Hombres Adultos (36 a 64 años)</option>
                   <option value="MA">MA – Mujeres Adultas (36 a 64 años)</option>
-
-                  <!-- 65+ -->
                   <option value="HAM">HAM – Hombres Adultos Mayores (65+ años)</option>
                   <option value="NAM">NAM – Mujeres Adultas Mayores (65+ años)</option>
                 </select>
                 <div class="invalid-feedback">Selecciona la categoría de edad.</div>
               </div>
 
-              <!-- Fechas -->
               <div class="col-12 col-md-6 col-lg-4">
                 <label for="tc_fecha_prestamo" class="form-label">Fecha y hora de préstamo</label>
                 <input
@@ -332,8 +427,9 @@
                   required>
                 <div class="invalid-feedback">Ingresa la fecha de devolución.</div>
               </div>
+            </div>
+            <div class="row g-3">
 
-              <!-- Observaciones -->
               <div class="col-12">
                 <label for="tc_observaciones" class="form-label">Observaciones</label>
                 <textarea
@@ -359,9 +455,9 @@
     </div>
   </div>
 
-  <!-- MODAL RÁPIDO PARA TIQUETE (lo de siempre, sin cambios grandes) -->
+  <!-- MODAL RÁPIDO PARA TIQUETE -->
   <div class="modal fade modal-ticket" id="ticketQuickModal" tabindex="-1"
-       aria-labelledby="ticketQuickModalLabel" aria-hidden="true">
+    aria-labelledby="ticketQuickModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-md">
       <div class="modal-content">
         <div class="modal-header border-0 pb-0">
@@ -374,8 +470,8 @@
         <div class="modal-body">
           <form id="ticketQuickForm" class="needs-validation" novalidate>
             <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrf ?? '', ENT_QUOTES, 'UTF-8') ?>">
-            <input type="hidden" id="quickTicketId"   name="id">
-            <input type="hidden" id="quickAccion"     name="accion">
+            <input type="hidden" id="quickTicketId" name="id">
+            <input type="hidden" id="quickAccion" name="accion">
 
             <div class="mb-3">
               <label class="form-label">Código</label>
@@ -414,7 +510,7 @@
               </button>
               <div class="d-flex gap-2">
                 <button type="button" id="btnCerrarTiquete" class="btn btn-outline-danger">
-                  Cerrar tiquete
+                  Devolver Libro
                 </button>
                 <button type="submit" class="btn btn-accent">
                   Guardar cambios
@@ -431,14 +527,117 @@
   <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
 
+  <!-- Tom Select JS -->
+  <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+
   <!-- Sidebar loader + helpers -->
   <script src="/assets/js/components.js"></script>
+
   <script>
-    // Carga el sidebar
     loadComponent('#sidebar-container', '/components/sidebar.html');
 
+    window.CHART_CATEGORIA_EDAD = <?= json_encode($chartCategoria ?? [], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+    window.CHART_ESTADOS = <?= json_encode($chartEstados ?? [], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+
+    function buildExportUrl(base) {
+      const from = document.getElementById('f_desde')?.value || '';
+      const to = document.getElementById('f_hasta')?.value || '';
+      const params = new URLSearchParams();
+      if (from) params.append('from', from);
+      if (to) params.append('to', to);
+      const qs = params.toString();
+      return qs ? `${base}?${qs}` : base;
+    }
+
+    document.getElementById('btnExportCsv')?.addEventListener('click', () => {
+      window.location.href = buildExportUrl('/tiquetes/export/csv');
+    });
+    document.getElementById('btnExportXlsx')?.addEventListener('click', () => {
+      window.location.href = buildExportUrl('/tiquetes/export/xlsx');
+    });
+
+    // === Gráfico: categorías de edad (Pie) ===
+    (function() {
+      const data = window.CHART_CATEGORIA_EDAD || [];
+      if (!data.length) return;
+
+      const ctx = document.getElementById('chartCategoriaEdad');
+      if (!ctx) return;
+
+      const codigos = data.map(d => d.codigo ?? d.label);
+      const descs = data.map(d => d.descripcion ?? d.label);
+      const values = data.map(d => parseInt(d.cantidad, 10) || 0);
+
+      new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: codigos,
+          datasets: [{
+            data: values
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              position: 'bottom'
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const total = values.reduce((a, b) => a + b, 0);
+                  const val = context.parsed;
+                  const pct = total ? ((val * 100) / total).toFixed(1) : 0;
+                  const idx = context.dataIndex;
+                  return `${codigos[idx]} – ${descs[idx]}: ${val} (${pct}%)`;
+                }
+              }
+            }
+          }
+        }
+      });
+    })();
+
+    // === Gráfico: estados (Bar) ===
+    (function() {
+      const data = window.CHART_ESTADOS || [];
+      if (!data.length) return;
+
+      const ctx = document.getElementById('chartEstados');
+      if (!ctx) return;
+
+      const labels = data.map(d => d.label);
+      const values = data.map(d => parseInt(d.cantidad, 10) || 0);
+
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            data: values
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              display: false
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                precision: 0
+              }
+            }
+          }
+        }
+      });
+    })();
+
     // Prefill fechas del modal de creación
-    (function () {
+    (function() {
       const fp = document.getElementById('tc_fecha_prestamo');
       const fd = document.getElementById('tc_fecha_devolucion');
       if (!fp || !fd) return;
@@ -455,96 +654,124 @@
 
       fp.addEventListener('change', () => {
         if (!fp.value) return;
-        // Si la devolución es menor al préstamo, la igualamos
-        if (fd.value < fp.value) {
-          fd.value = fp.value;
-        }
+        if (fd.value < fp.value) fd.value = fp.value;
       });
     })();
 
-    // Cuando cambie el libro seleccionado, rellenar título y autor
-    (function () {
+    (function() {
+      const sel = document.getElementById('tc_libro_id');
+      if (!sel || sel.tomselect) return;
+
+      const ts = new TomSelect(sel, {
+        create: false,
+        allowEmptyOption: true,
+        placeholder: 'Selecciona un libro disponible…',
+        searchField: ['text'],
+        maxOptions: 5000,
+        closeAfterSelect: true,
+        openOnFocus: true,
+        items: [],
+
+        onInitialize: function() {
+          // Asegura que NO seleccione nada al iniciar
+          this.clear(true);
+        }
+      });
+
+      // Cuando el usuario hace foco, abrimos y limpiamos el input de búsqueda
+      ts.on('focus', () => {
+        ts.open();
+        ts.control_input.value = '';
+      });
+    })();
+
+
+    // Libro -> título (hidden) y autor (input)
+    (function() {
       const sel = document.getElementById('tc_libro_id');
       const tituloHidden = document.getElementById('tc_libro_titulo');
-      const autorInput   = document.getElementById('tc_autor');
+      const autorInput = document.getElementById('tc_autor');
       if (!sel) return;
 
-      sel.addEventListener('change', () => {
-        const opt = sel.selectedOptions[0];
+      const syncFromOption = () => {
+        const opt = sel.selectedOptions && sel.selectedOptions[0] ? sel.selectedOptions[0] : null;
         if (!opt) return;
 
         const titulo = opt.getAttribute('data-titulo') || '';
-        const autor  = opt.getAttribute('data-autor') || '';
+        const autor = opt.getAttribute('data-autor') || '';
 
         if (tituloHidden) tituloHidden.value = titulo;
         if (autorInput && autor !== '') autorInput.value = autor;
-      });
+      };
+
+      sel.addEventListener('change', syncFromOption);
+
+      // Si el modal abre y ya hay selección por defecto
+      const modal = document.getElementById('createTicketModal');
+      if (modal) {
+        modal.addEventListener('shown.bs.modal', () => {
+          syncFromOption();
+          const cliente = document.getElementById('tc_cliente');
+          if (cliente) cliente.focus();
+          // const ts = sel.tomselect;
+          // if (ts) ts.focus();
+        });
+      }
     })();
 
-    // Export (reutiliza export de tiquetes)
-    document.getElementById('btnExportCsv')?.addEventListener('click', () => {
-      window.location.href = '/tiquetes/export/csv';
-    });
-    document.getElementById('btnExportXlsx')?.addEventListener('click', () => {
-      window.location.href = '/tiquetes/export/xlsx';
-    });
-
+    // Modal rápido
     const ticketQuickModal = document.getElementById('ticketQuickModal');
-    const quickForm        = document.getElementById('ticketQuickForm');
-    const infoDiv          = document.getElementById('ticketQuickInfo');
+    const quickForm = document.getElementById('ticketQuickForm');
+    const infoDiv = document.getElementById('ticketQuickInfo');
 
-    ticketQuickModal.addEventListener('show.bs.modal', event => {
-      const btn   = event.relatedTarget;
-      const data  = btn && btn.dataset.ticket ? JSON.parse(btn.dataset.ticket) : null;
+    if (ticketQuickModal) {
+      ticketQuickModal.addEventListener('show.bs.modal', event => {
+        const btn = event.relatedTarget;
+        const data = btn && btn.dataset.ticket ? JSON.parse(btn.dataset.ticket) : null;
 
-      quickForm.classList.remove('was-validated');
-      document.getElementById('quickAccion').value  = '';
-      document.getElementById('quickTicketId').value = data?.id ?? '';
-      document.getElementById('quickCodigo').value  = data?.codigo ?? '';
-      document.getElementById('quickTitulo').value  = data?.titulo ?? '';
-      document.getElementById('quickCliente').value = data?.cliente ?? '';
-      document.getElementById('quickEstado').value  = data?.estado ?? '';
+        quickForm.classList.remove('was-validated');
+        document.getElementById('quickAccion').value = '';
+        document.getElementById('quickTicketId').value = data?.id ?? '';
+        document.getElementById('quickCodigo').value = data?.codigo ?? '';
+        document.getElementById('quickTitulo').value = data?.titulo ?? '';
+        document.getElementById('quickCliente').value = data?.cliente ?? '';
+        document.getElementById('quickEstado').value = data?.estado ?? '';
 
-      const raw = data?.fecha_devolucion ?? '';
-      let dt = '';
-      if (raw) {
-        dt = raw.replace(' ', 'T').substring(0, 16);
-      }
-      document.getElementById('quickFechaDev').value = dt;
+        const raw = data?.fecha_devolucion ?? '';
+        let dt = '';
+        if (raw) dt = raw.replace(' ', 'T').substring(0, 16);
+        document.getElementById('quickFechaDev').value = dt;
 
-      infoDiv.textContent = data?.codigo
-        ? `ID interno: ${data.id} · Código: ${data.codigo}`
-        : '';
-    });
+        infoDiv.textContent = data?.codigo ? `ID interno: ${data.id} · Código: ${data.codigo}` : '';
+      });
+    }
 
-    // Botón "Cerrar tiquete" → manda estado Devuelto
-    document.getElementById('btnCerrarTiquete').addEventListener('click', async () => {
+    document.getElementById('btnCerrarTiquete')?.addEventListener('click', async () => {
       const id = document.getElementById('quickTicketId').value;
       if (!id) return;
 
-      const confirm = await Swal.fire({
+      const confirmRes = await Swal.fire({
         icon: 'warning',
-        title: 'Cerrar tiquete',
+        title: 'Devolver libro',
         text: 'El tiquete pasará a estado Devuelto y el libro quedará disponible.',
         showCancelButton: true,
-        confirmButtonText: 'Sí, cerrar',
+        confirmButtonText: 'Sí, devolver',
         cancelButtonText: 'Cancelar',
         confirmButtonColor: '#ec6d13'
       });
 
-      if (!confirm.isConfirmed) return;
-
+      if (!confirmRes.isConfirmed) return;
       document.getElementById('quickAccion').value = 'cerrar';
-
       submitQuickForm();
     });
 
-    // Guardar cambios (solo fecha de vencimiento)
-    quickForm.addEventListener('submit', e => {
-      e.preventDefault();
-      document.getElementById('quickAccion').value = 'actualizar_fecha';
-      submitQuickForm();
-    });
+    if (quickForm) {
+      quickForm.addEventListener('submit', e => {
+        e.preventDefault();
+        document.getElementById('quickAccion').value = 'actualizar_fecha';
+        submitQuickForm();
+      });
+    }
 
     async function submitQuickForm() {
       if (!quickForm.checkValidity()) {
@@ -564,9 +791,10 @@
           method: 'POST',
           body: fd
         });
-
         let data = null;
-        try { data = await rsp.json(); } catch (_) {}
+        try {
+          data = await rsp.json();
+        } catch (_) {}
 
         if (!rsp.ok || !data || !data.ok) {
           throw new Error(data && data.message ? data.message : 'No se pudo actualizar el tiquete.');
@@ -592,12 +820,12 @@
       }
     }
 
-    // Validación básica para el formulario de creación (lado cliente)
-    (function () {
+    // Validación form creación
+    (function() {
       const form = document.getElementById('ticketCreateForm');
       if (!form) return;
 
-      form.addEventListener('submit', function (e) {
+      form.addEventListener('submit', function(e) {
         if (!form.checkValidity()) {
           e.preventDefault();
           e.stopPropagation();
@@ -612,4 +840,5 @@
     })();
   </script>
 </body>
+
 </html>

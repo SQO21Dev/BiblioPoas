@@ -35,7 +35,7 @@
         <button class="btn btn-outline-secondary d-none d-md-inline-flex" id="btnExportXlsx" title="Exportar Excel">
           <i class="fa-regular fa-file-excel me-2"></i> Excel
         </button>
-        <button class="btn btn-coral d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#userModal">
+        <button class="btn btn-peach d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#userModal">
           <i class="fa-solid fa-user-plus"></i> Agregar usuario
         </button>
       </div>

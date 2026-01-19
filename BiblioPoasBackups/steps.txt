@@ -1,0 +1,75 @@
+BiblioPoás – Backups automáticos MySQL (WINDOWS & Linux)
+
+Objetivo:
+Configurar copias de seguridad automáticas cada 1 hora de la base de datos MySQL
+del sistema BiblioPoás en Windows, usando Task Scheduler.
+
+
+********** WINDOWS ********** 
+
+PASO 1 – Crear carpetas
+Crear dentro del proyecto:
+BiblioPoasBackups
+BiblioPoasBackups/backups
+
+PASO 2 – Script backup_bibliopoas.bat
+
+PASO 3 – Programar tarea en Task Scheduler
+1. Abrir Task Scheduler
+2. Seleccionar Create Task
+3. General
+    3.1 Nombre: BiblioPoas MySQL Backup
+    3.2 Ejecutar aunque el usuario no haya iniciado sesión
+4. Triggers
+    4.1 Nuevo → Daily
+    4.2Repetir cada: 1 hour
+    4.3 Duración: Indefinitely
+5. Actions
+    5.1 Start a program
+    5.2 Program/script: BiblioPoas\BiblioPoasBackups\backup_bibliopoas.bat
+6. Guardar
+
+********** LINUX ********** 
+
+PASO 1 – Crear carpetas
+Crear archivo backup_bibliopoas.sh
+
+PASO 2 – Script backup_bibliopoas.bat
+
+PASO 3 - Dar permisos
+chmod +x BiblioPoas/BiblioPoasBackups/backup_bibliopoas.sh
+
+PASO 4 - Credenciales MySQL
+1. Crear archivo:
+    nano ~/.my.cnf
+
+2. Contenido:
+    [client]
+    user=root
+    password=TU_PASSWORD
+    host=localhost
+
+3. Dar permisos: 
+    chmod 600 ~/.my.cnf
+
+
+
+PASO 3 – Programar tarea en Task Scheduler
+1. crontab -e
+2. Agregar: 0 * * * * /RUTA_COMPLETA/BiblioPoas/BiblioPoasBackups/backup_bibliopoas.sh >/dev/null 2>&1
+
+Ejemplo: 0 * * * * /home/sebas/BiblioPoas/BiblioPoasBackups/backup_bibliopoas.sh >/dev/null 2>&1
+
+
+3. General
+    3.1 Nombre: BiblioPoas MySQL Backup
+    3.2 Ejecutar aunque el usuario no haya iniciado sesión
+4. Triggers
+    4.1 Nuevo → Daily
+    4.2Repetir cada: 1 hour
+    4.3 Duración: Indefinitely
+5. Actions
+    5.1 Start a program
+    5.2 Program/script: BiblioPoas\BiblioPoasBackups\backup_bibliopoas.bat
+6. Guardar
+

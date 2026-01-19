@@ -36,7 +36,7 @@
         <button class="btn btn-outline-secondary d-none d-md-inline-flex" id="btnExportXlsx" title="Exportar Excel">
           <i class="fa-regular fa-file-excel me-2"></i> Excel
         </button>
-        <button class="btn btn-coral d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#bookModal">
+        <button class="btn btn-peach d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#bookModal">
           <i class="fa-solid fa-book-medical"></i> Agregar libro
         </button>
       </div>
@@ -81,17 +81,45 @@
       </div>
     </section>
 
-    <!-- Filtro -->
-    <div class="row g-2 align-items-center mb-3">
+    <!-- Filtro + paginación -->
+    <div class="row g-2 align-items-end mb-3">
       <div class="col-12 col-md-4">
+        <label for="filterInput" class="form-label small mb-1">Buscar</label>
         <div class="input-group">
           <span class="input-group-text"><i class="fa-solid fa-magnifying-glass"></i></span>
           <input id="filterInput" type="search" class="form-control"
                  placeholder="Buscar por título, autor, ISBN, DEWEY…">
         </div>
       </div>
-      <div class="col-12 col-md-auto ms-auto">
-        <span class="text-muted small">Total: <strong id="totalRows"><?= isset($libros) ? count($libros) : 0 ?></strong></span>
+
+      <div class="col-12 col-md-4">
+        <label for="categoryFilter" class="form-label small mb-1">Categoría</label>
+        <select id="categoryFilter" class="form-select">
+          <option value="">Todas las categorías</option>
+          <?php if (!empty($categorias) && is_array($categorias)): ?>
+            <?php foreach ($categorias as $cat): ?>
+              <option value="<?= (int)($cat['id'] ?? 0) ?>">
+                <?= htmlspecialchars($cat['nombre'] ?? 'Categoría', ENT_QUOTES, 'UTF-8') ?>
+              </option>
+            <?php endforeach; ?>
+          <?php endif; ?>
+        </select>
+      </div>
+
+      <div class="col-12 col-md-4 d-flex flex-wrap gap-2 align-items-end justify-content-md-end">
+        <div class="ms-md-auto">
+          <label for="pageSize" class="form-label small mb-1">Libros por página</label>
+          <select id="pageSize" class="form-select">
+            <option value="10" selected>10</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+
+        <div class="text-muted small ms-md-2">
+          Mostrando: <strong id="totalRows">0</strong>
+        </div>
       </div>
     </div>
 
@@ -105,21 +133,17 @@
               <th class="px-3 py-3">Vol/Pte/No/Tomo/Ejemplar</th>
               <th class="px-3 py-3">ISBN</th>
               <th class="px-3 py-3">Clasificación DEWEY</th>
-              <th class="px-3 py-3">Autor</th>
-              <th class="px-3 py-3">Año</th>
-              <th class="px-3 py-3">Categoría</th>
-              <th class="px-3 py-3">Etiquetas</th>
-              <th class="px-3 py-3 text-center">Cantidad</th>
               <th class="px-3 py-3">Estado</th>
-              <th class="px-3 py-3">Creado</th>
-              <th class="px-3 py-3">Modificado</th>
               <th class="px-3 py-3">Acciones</th>
             </tr>
           </thead>
           <tbody>
           <?php if (!empty($libros) && is_array($libros)): ?>
             <?php foreach ($libros as $l): ?>
-              <tr data-row>
+              <?php
+                $catId = (int)($l['categoria_id'] ?? 0);
+              ?>
+              <tr data-row data-categoria-id="<?= $catId ?>">
                 <td class="px-3 py-3 fw-semibold">
                   <?= htmlspecialchars($l['titulo'] ?? '', ENT_QUOTES, 'UTF-8') ?>
                 </td>
@@ -132,21 +156,6 @@
                 <td class="px-3 py-3 text-muted">
                   <?= htmlspecialchars($l['clasificacion_dewey'] ?? '', ENT_QUOTES, 'UTF-8') ?>
                 </td>
-                <td class="px-3 py-3 text-muted">
-                  <?= htmlspecialchars($l['autor'] ?? '', ENT_QUOTES, 'UTF-8') ?>
-                </td>
-                <td class="px-3 py-3 text-muted">
-                  <?= htmlspecialchars($l['anio_publicacion'] ?? '', ENT_QUOTES, 'UTF-8') ?>
-                </td>
-                <td class="px-3 py-3 text-muted">
-                  <?= htmlspecialchars($l['categoria_nombre'] ?? '', ENT_QUOTES, 'UTF-8') ?>
-                </td>
-                <td class="px-3 py-3 text-muted">
-                  <?= htmlspecialchars($l['etiquetas'] ?? '', ENT_QUOTES, 'UTF-8') ?>
-                </td>
-                <td class="px-3 py-3 text-center">
-                  <?= htmlspecialchars($l['cantidad'] ?? '0', ENT_QUOTES, 'UTF-8') ?>
-                </td>
                 <td class="px-3 py-3">
                   <?php
                     $estadoDb = $l['estado'] ?? 'Disponible';
@@ -157,12 +166,6 @@
                   <?php else: ?>
                     <span class="badge-state-inactive">Prestado</span>
                   <?php endif; ?>
-                </td>
-                <td class="px-3 py-3 text-muted">
-                  <?= htmlspecialchars($l['creado_en'] ?? '', ENT_QUOTES, 'UTF-8') ?>
-                </td>
-                <td class="px-3 py-3 text-muted">
-                  <?= htmlspecialchars($l['modificado_en'] ?? '', ENT_QUOTES, 'UTF-8') ?>
                 </td>
                 <td class="px-3 py-3">
                   <div class="d-flex gap-2">
@@ -201,51 +204,25 @@
               </tr>
             <?php endforeach; ?>
           <?php else: ?>
-            <!-- Fila demo si aún no hay datos -->
-            <tr data-row>
-              <th class="px-3 py-3 fw-semibold" scope="row">El Señor de los Anillos</th>
-              <td class="px-3 py-3 text-muted">Tomo I / Ej. 2</td>
-              <td class="px-3 py-3 text-muted">978-0618640157</td>
-              <td class="px-3 py-3 text-muted">863.7 T649e</td>
-              <td class="px-3 py-3 text-muted">J. R. R. Tolkien</td>
-              <td class="px-3 py-3 text-muted">1954</td>
-              <td class="px-3 py-3 text-muted">Fantasía</td>
-              <td class="px-3 py-3 text-muted">épico, media-terra</td>
-              <td class="px-3 py-3 text-center">3</td>
-              <td class="px-3 py-3"><span class="badge-state-active">Disponible</span></td>
-              <td class="px-3 py-3 text-muted">2025-09-30 10:12</td>
-              <td class="px-3 py-3 text-muted">2025-10-05 14:21</td>
-              <td class="px-3 py-3">
-                <div class="d-flex gap-2">
-                  <button class="btn-action-edit"
-                    data-book='{
-                      "id":"1",
-                      "titulo":"El Señor de los Anillos",
-                      "volumen":"Tomo I / Ej. 2",
-                      "isbn":"978-0618640157",
-                      "dewey":"863.7 T649e",
-                      "autor":"J. R. R. Tolkien",
-                      "anio":"1954",
-                      "categoria":"1",
-                      "etiquetas":"épico, media-terra",
-                      "cantidad":"3",
-                      "estado":"disponible",
-                      "creado_en":"2025-09-30 10:12",
-                      "modificado_en":"2025-10-05 14:21",
-                      "observaciones":""
-                    }'
-                    title="Editar" data-bs-toggle="modal" data-bs-target="#bookModal">
-                    <i class="fa-solid fa-pen-to-square"></i>
-                  </button>
-                  <button class="btn-action-del" title="Eliminar" onclick="onDeleteBook(1, 'El Señor de los Anillos')">
-                    <i class="fa-solid fa-trash-can"></i>
-                  </button>
-                </div>
+            <tr data-row data-categoria-id="0">
+              <td colspan="6" class="px-3 py-4 text-center text-muted">
+                No hay libros para mostrar.
               </td>
             </tr>
           <?php endif; ?>
           </tbody>
         </table>
+      </div>
+
+      <!-- Controles paginación -->
+      <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between px-3 py-3 border-top">
+        <div class="small text-muted">
+          Página <strong id="pageInfo">1</strong>
+        </div>
+
+        <nav aria-label="Paginación de libros">
+          <ul class="pagination mb-0" id="pagination"></ul>
+        </nav>
       </div>
     </div>
   </main>
@@ -265,6 +242,9 @@
           <form id="bookForm" class="needs-validation" novalidate>
             <input type="hidden" name="_csrf" id="csrfField" value="<?= htmlspecialchars($csrf ?? '', ENT_QUOTES, 'UTF-8') ?>">
             <input type="hidden" name="id" id="bookId">
+
+            <!-- Estado: NO se muestra, por defecto "disponible" -->
+            <input type="hidden" name="estado" id="estado" value="disponible">
 
             <div class="row g-3">
               <div class="col-12 col-md-6">
@@ -294,7 +274,7 @@
                 <div class="invalid-feedback">Ingresa el autor.</div>
               </div>
 
-              <!-- Categoría: ahora sí dropdown con datos de la tabla categorias -->
+              <!-- Categoría -->
               <div class="col-12 col-md-6">
                 <label for="categoria" class="form-label">Categoría (referencia)</label>
                 <select id="categoria" name="categoria_id" class="form-select">
@@ -318,15 +298,7 @@
                 <input id="cantidad" name="cantidad" type="number" class="form-control" min="1" value="1" required>
                 <div class="invalid-feedback">Ingresa la cantidad (≥1).</div>
               </div>
-              <div class="col-12 col-md-3">
-                <label for="estado" class="form-label">Estado</label>
-                <select id="estado" name="estado" class="form-select" required>
-                  <option value="" disabled selected>Selecciona…</option>
-                  <option value="disponible">Disponible</option>
-                  <option value="prestado">Prestado</option>
-                </select>
-                <div class="invalid-feedback">Selecciona el estado.</div>
-              </div>
+
               <div class="col-12">
                 <label for="observaciones" class="form-label">Observaciones</label>
                 <textarea id="observaciones" name="observaciones" class="form-control" rows="3" placeholder="Notas adicionales (opcional)"></textarea>
@@ -335,7 +307,7 @@
 
             <div class="d-flex justify-content-end gap-2 pt-3">
               <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-              <button type="submit" class="btn btn-coral">Guardar</button>
+              <button type="submit" class="btn btn-peach">Guardar</button>
             </div>
           </form>
         </div>
@@ -349,30 +321,187 @@
 
   <!-- Sidebar loader + helpers -->
   <script src="/assets/js/components.js"></script>
+
   <script>
     // Cargar sidebar
     loadComponent('#sidebar-container', '/components/sidebar.html');
 
-    // Filtro rápido por texto
-    const filterInput = document.getElementById('filterInput');
-    const tbody       = document.querySelector('#booksTable tbody');
-    const totalRows   = document.getElementById('totalRows');
+    const filterInput     = document.getElementById('filterInput');
+    const categoryFilter  = document.getElementById('categoryFilter');
+    const pageSizeSelect  = document.getElementById('pageSize');
+    const tbody           = document.querySelector('#booksTable tbody');
+    const totalRowsEl     = document.getElementById('totalRows');
+    const paginationEl    = document.getElementById('pagination');
+    const pageInfoEl      = document.getElementById('pageInfo');
 
-    function applyFilter() {
-      const q = (filterInput.value || '').toLowerCase();
-      let visible = 0;
-      tbody.querySelectorAll('tr[data-row]').forEach(tr => {
-        const text = tr.innerText.toLowerCase();
-        const ok   = !q || text.includes(q);
-        tr.style.display = ok ? '' : 'none';
-        if (ok) visible++;
+    // Estado de paginación
+    let currentPage = 1;
+    let pageSize = 10;
+
+    // Helpers: toma filas reales (data-row) excepto la de "no hay datos"
+    function getAllRows() {
+      return Array.from(tbody.querySelectorAll('tr[data-row]'))
+        .filter(tr => tr.querySelectorAll('td').length > 0);
+    }
+
+    function rowMatchesText(tr, q) {
+      if (!q) return true;
+      const text = (tr.innerText || '').toLowerCase();
+      return text.includes(q);
+    }
+
+    function rowMatchesCategory(tr, catId) {
+      if (!catId) return true;
+      const rowCat = tr.getAttribute('data-categoria-id') || '';
+      return String(rowCat) === String(catId);
+    }
+
+    function getFilteredRows() {
+      const q = (filterInput?.value || '').toLowerCase().trim();
+      const catId = (categoryFilter?.value || '').trim();
+      const rows = getAllRows();
+      return rows.filter(tr => rowMatchesText(tr, q) && rowMatchesCategory(tr, catId));
+    }
+
+    function clampPage(page, totalPages) {
+      if (totalPages <= 1) return 1;
+      if (page < 1) return 1;
+      if (page > totalPages) return totalPages;
+      return page;
+    }
+
+    function renderPagination(totalItems) {
+      const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+      currentPage = clampPage(currentPage, totalPages);
+
+      paginationEl.innerHTML = '';
+
+      // Prev
+      const liPrev = document.createElement('li');
+      liPrev.className = 'page-item' + (currentPage === 1 ? ' disabled' : '');
+      liPrev.innerHTML = `<a class="page-link" href="#" aria-label="Anterior">&laquo;</a>`;
+      liPrev.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (currentPage === 1) return;
+        currentPage--;
+        applyFilterAndPagination();
       });
-      totalRows.textContent = visible;
+      paginationEl.appendChild(liPrev);
+
+      // Números (ventana)
+      const windowSize = 5;
+      const half = Math.floor(windowSize / 2);
+      let start = Math.max(1, currentPage - half);
+      let end = Math.min(totalPages, start + windowSize - 1);
+      start = Math.max(1, end - windowSize + 1);
+
+      if (start > 1) {
+        paginationEl.appendChild(makePageItem(1, currentPage));
+        if (start > 2) paginationEl.appendChild(makeEllipsis());
+      }
+
+      for (let p = start; p <= end; p++) {
+        paginationEl.appendChild(makePageItem(p, currentPage));
+      }
+
+      if (end < totalPages) {
+        if (end < totalPages - 1) paginationEl.appendChild(makeEllipsis());
+        paginationEl.appendChild(makePageItem(totalPages, currentPage));
+      }
+
+      // Next
+      const liNext = document.createElement('li');
+      liNext.className = 'page-item' + (currentPage === totalPages ? ' disabled' : '');
+      liNext.innerHTML = `<a class="page-link" href="#" aria-label="Siguiente">&raquo;</a>`;
+      liNext.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (currentPage === totalPages) return;
+        currentPage++;
+        applyFilterAndPagination();
+      });
+      paginationEl.appendChild(liNext);
+
+      pageInfoEl.textContent = `${currentPage} de ${totalPages}`;
     }
 
-    if (filterInput) {
-      filterInput.addEventListener('input', applyFilter);
+    function makePageItem(page, current) {
+      const li = document.createElement('li');
+      li.className = 'page-item' + (page === current ? ' active' : '');
+      li.innerHTML = `<a class="page-link" href="#">${page}</a>`;
+      li.addEventListener('click', (e) => {
+        e.preventDefault();
+        currentPage = page;
+        applyFilterAndPagination();
+      });
+      return li;
     }
+
+    function makeEllipsis() {
+      const li = document.createElement('li');
+      li.className = 'page-item disabled';
+      li.innerHTML = `<span class="page-link">…</span>`;
+      return li;
+    }
+
+    function applyFilterAndPagination() {
+      const allRows = getAllRows();
+      const filtered = getFilteredRows();
+
+      // Oculta todas
+      allRows.forEach(tr => tr.style.display = 'none');
+
+      // Paginación sobre filtered
+      const totalItems = filtered.length;
+      const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+      currentPage = clampPage(currentPage, totalPages);
+
+      const startIdx = (currentPage - 1) * pageSize;
+      const endIdx = startIdx + pageSize;
+      const pageRows = filtered.slice(startIdx, endIdx);
+
+      pageRows.forEach(tr => tr.style.display = '');
+
+      totalRowsEl.textContent = String(totalItems);
+      renderPagination(totalItems);
+    }
+
+    // Eventos filtros
+    filterInput?.addEventListener('input', () => {
+      currentPage = 1;
+      applyFilterAndPagination();
+    });
+
+    categoryFilter?.addEventListener('change', () => {
+      currentPage = 1;
+      applyFilterAndPagination();
+    });
+
+    pageSizeSelect?.addEventListener('change', () => {
+      const val = parseInt(pageSizeSelect.value, 10);
+      pageSize = Number.isFinite(val) && val > 0 ? val : 10;
+      currentPage = 1;
+      applyFilterAndPagination();
+    });
+
+    // Inicializa paginación al cargar
+    (function initPagination() {
+      try {
+        const saved = localStorage.getItem('books_page_size');
+        if (saved) {
+          const s = parseInt(saved, 10);
+          if (Number.isFinite(s) && s > 0) {
+            pageSize = s;
+            pageSizeSelect.value = String(s);
+          }
+        }
+      } catch (_) {}
+
+      pageSizeSelect?.addEventListener('change', () => {
+        try { localStorage.setItem('books_page_size', pageSizeSelect.value); } catch (_) {}
+      });
+
+      applyFilterAndPagination();
+    })();
 
     // Export
     document.getElementById('btnExportCsv')?.addEventListener('click', () => {
@@ -384,7 +513,7 @@
 
     // Modal: alta/edición
     const bookModal = document.getElementById('bookModal');
-    bookModal.addEventListener('show.bs.modal', (event) => {
+    bookModal?.addEventListener('show.bs.modal', (event) => {
       const btn   = event.relatedTarget;
       const title = document.getElementById('bookModalLabel');
       const form  = document.getElementById('bookForm');
@@ -393,6 +522,9 @@
       form.classList.remove('was-validated');
       form.reset();
       document.getElementById('bookId').value = '';
+      // Estado por defecto siempre disponible al abrir como "Agregar"
+      document.getElementById('estado').value = 'disponible';
+
       audit.classList.add('d-none');
       audit.textContent = '';
 
@@ -413,6 +545,7 @@
         document.getElementById('categoria').value     = data.categoria || '';
         document.getElementById('etiquetas').value     = data.etiquetas || '';
         document.getElementById('cantidad').value      = data.cantidad || 1;
+        // En edición, respetamos lo que venga de DB
         document.getElementById('estado').value        = data.estado || 'disponible';
         document.getElementById('observaciones').value = data.observaciones || '';
 
@@ -426,7 +559,7 @@
     });
 
     // Submit (create/update via fetch + redirecciones del backend)
-    document.getElementById('bookForm').addEventListener('submit', async (e) => {
+    document.getElementById('bookForm')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const form = e.target;
 
@@ -462,6 +595,7 @@
           title: isEdit ? 'Libro actualizado' : 'Libro agregado',
           confirmButtonColor: '#ec6d13'
         });
+
         window.location.reload();
       } catch (err) {
         Swal.fire({

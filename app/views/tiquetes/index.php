@@ -16,8 +16,27 @@
   <script src="https://kit.fontawesome.com/5152164a0e.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
+  <!-- Tom Select (para SELECT con buscador) -->
+  <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
+
   <!-- Estilos propios -->
   <link rel="stylesheet" href="/assets/css/style.css">
+
+  <!-- (Opcional) Estilo extra para que "Devuelto" SIEMPRE tenga color aunque tu CSS no tenga badge-state-neutral -->
+  <style>
+    /* Si ya existe en tu CSS, esto no estorba; si no existe, lo define. */
+    .badge-state-neutral{
+      display:inline-flex;
+      align-items:center;
+      padding:.35rem .6rem;
+      border-radius:999px;
+      font-weight:700;
+      font-size:.85rem;
+      background:#e8f5ee;
+      color:#1f7a4f;
+      border:1px solid rgba(31,122,79,.15);
+    }
+  </style>
 </head>
 
 <body class="dashboard-root">
@@ -75,6 +94,38 @@
       </div>
     </section>
 
+    <!-- FILTROS + PAGINACION -->
+    <div class="row g-2 align-items-end mb-3">
+      <div class="col-12 col-md-4">
+        <label for="monthFilter" class="form-label small mb-1">Filtrar por mes</label>
+        <input id="monthFilter" type="month" class="form-control" placeholder="YYYY-MM">
+      </div>
+
+      <div class="col-12 col-md-4">
+        <label class="form-label small mb-1">Rango de fechas</label>
+        <div class="d-flex gap-2">
+          <input id="fromDate" type="date" class="form-control" title="Desde">
+          <input id="toDate" type="date" class="form-control" title="Hasta">
+        </div>
+      </div>
+
+      <div class="col-12 col-md-4 d-flex flex-wrap gap-2 align-items-end justify-content-md-end">
+        <div class="ms-md-auto">
+          <label for="pageSize" class="form-label small mb-1">Tiquetes por página</label>
+          <select id="pageSize" class="form-select">
+            <option value="10" selected>10</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+
+        <div class="text-muted small ms-md-2">
+          Mostrando: <strong id="totalRows">0</strong>
+        </div>
+      </div>
+    </div>
+
     <!-- TABLA DE TIQUETES -->
     <div class="block-users">
       <div class="d-flex justify-content-end gap-2 px-3 py-2 border-bottom">
@@ -87,15 +138,13 @@
       </div>
 
       <div class="table-responsive">
-        <table class="table table-users align-middle mb-0">
+        <table class="table table-users align-middle mb-0" id="ticketsTable">
           <thead>
             <tr>
               <th class="px-3 py-3">Código</th>
               <th class="px-3 py-3">Cliente</th>
               <th class="px-3 py-3">Teléfono</th>
-              <th class="px-3 py-3">Dirección</th>
               <th class="px-3 py-3">Libro</th>
-              <th class="px-3 py-3">Autor</th>
               <th class="px-3 py-3">Fecha Préstamo</th>
               <th class="px-3 py-3">Fecha Devolución</th>
               <th class="px-3 py-3">Estado</th>
@@ -106,31 +155,37 @@
           <tbody>
             <?php if (!empty($tiquetes) && is_array($tiquetes)): ?>
               <?php foreach ($tiquetes as $t): ?>
-                <tr data-row>
+                <?php
+                  // Para filtros en front: guardamos fecha_prestamo en data-fecha (YYYY-MM-DD)
+                  // Si viene como "YYYY-MM-DD HH:MM:SS", se toma la parte de fecha.
+                  $fpRaw = (string)($t['fecha_prestamo'] ?? '');
+                  $fpDateOnly = $fpRaw !== '' ? substr($fpRaw, 0, 10) : '';
+                ?>
+                <tr data-row data-fecha-prestamo="<?= htmlspecialchars($fpDateOnly, ENT_QUOTES, 'UTF-8') ?>">
                   <td class="px-3 py-3 fw-semibold">
                     <?= htmlspecialchars($t['codigo'] ?? '', ENT_QUOTES, 'UTF-8') ?>
                   </td>
+
                   <td class="px-3 py-3">
                     <?= htmlspecialchars($t['nombre_cliente'] ?? $t['cliente_rel'] ?? '', ENT_QUOTES, 'UTF-8') ?>
                   </td>
+
                   <td class="px-3 py-3 text-muted">
                     <?= htmlspecialchars($t['telefono'] ?? '', ENT_QUOTES, 'UTF-8') ?>
                   </td>
-                  <td class="px-3 py-3 text-muted">
-                    <?= htmlspecialchars($t['direccion'] ?? '', ENT_QUOTES, 'UTF-8') ?>
-                  </td>
+
                   <td class="px-3 py-3">
                     <?= htmlspecialchars($t['titulo'] ?? $t['libro_rel'] ?? '', ENT_QUOTES, 'UTF-8') ?>
                   </td>
-                  <td class="px-3 py-3 text-muted">
-                    <?= htmlspecialchars($t['autor'] ?? '', ENT_QUOTES, 'UTF-8') ?>
-                  </td>
+
                   <td class="px-3 py-3 text-muted">
                     <?= htmlspecialchars($t['fecha_prestamo'] ?? '', ENT_QUOTES, 'UTF-8') ?>
                   </td>
+
                   <td class="px-3 py-3 text-muted">
                     <?= htmlspecialchars($t['fecha_devolucion'] ?? '', ENT_QUOTES, 'UTF-8') ?>
                   </td>
+
                   <td class="px-3 py-3">
                     <?php
                     $estado = $t['estado'] ?? 'En Prestamo';
@@ -138,6 +193,7 @@
                       $badgeClass  = 'badge-state-active';
                       $textoEstado = 'En préstamo';
                     } elseif ($estado === 'Devuelto') {
+                      // IMPORTANTE: aquí garantizamos que sí lleve "badge-state-neutral"
                       $badgeClass  = 'badge-state-neutral';
                       $textoEstado = 'Devuelto';
                     } else {
@@ -147,25 +203,27 @@
                     ?>
                     <span class="<?= $badgeClass ?>"><?= $textoEstado ?></span>
                   </td>
+
                   <td class="px-3 py-3 text-muted">
                     <?= htmlspecialchars($t['creado_en'] ?? '', ENT_QUOTES, 'UTF-8') ?>
                   </td>
+
                   <td class="px-3 py-3">
                     <div class="d-flex gap-2">
                       <button
                         class="btn-action-edit"
-                        title="Editar"
+                        title="Editar (pendiente replicar edición)"
+                        type="button"
                         data-bs-toggle="modal"
                         data-bs-target="#ticketModal"
                         data-ticket='<?= json_encode([
                                         'id'              => (int)($t['id'] ?? 0),
                                         'codigo'          => $t['codigo'] ?? '',
                                         'cliente'         => $t['nombre_cliente'] ?? $t['cliente_rel'] ?? '',
-                                        'cliente_id'      => $t['cliente_id'] ?? null,
                                         'telefono'        => $t['telefono'] ?? '',
                                         'direccion'       => $t['direccion'] ?? '',
-                                        'libro'           => $t['titulo'] ?? $t['libro_rel'] ?? '',
                                         'libro_id'        => $t['libro_id'] ?? null,
+                                        'libro'           => $t['titulo'] ?? $t['libro_rel'] ?? '',
                                         'autor'           => $t['autor'] ?? '',
                                         'fecha_prestamo'  => isset($t['fecha_prestamo'])
                                           ? str_replace(' ', 'T', substr($t['fecha_prestamo'], 0, 16))
@@ -193,215 +251,199 @@
                 </tr>
               <?php endforeach; ?>
             <?php else: ?>
-              <!-- DEMO SI NO HAY DATOS -->
               <tr data-row>
-                <td class="px-3 py-3 fw-semibold">BBPO-0001</td>
-                <td class="px-3 py-3">Ana Rodríguez</td>
-                <td class="px-3 py-3 text-muted">8888-8888</td>
-                <td class="px-3 py-3 text-muted">San Rafael de Poás</td>
-                <td class="px-3 py-3">El Señor de los Anillos</td>
-                <td class="px-3 py-3 text-muted">J. R. R. Tolkien</td>
-                <td class="px-3 py-3 text-muted">2025-10-10 09:00</td>
-                <td class="px-3 py-3 text-muted">2025-10-17 09:00</td>
-                <td class="px-3 py-3"><span class="badge-state-active">En préstamo</span></td>
-                <td class="px-3 py-3 text-muted">2025-10-10</td>
-                <td class="px-3 py-3">
-                  <div class="d-flex gap-2">
-                    <button class="btn-action-edit"
-                      data-ticket='{
-                      "id":"1",
-                      "codigo":"BBPO-0001",
-                      "cliente":"Ana Rodríguez",
-                      "cliente_id":"1",
-                      "telefono":"8888-8888",
-                      "direccion":"San Rafael de Poás",
-                      "libro":"El Señor de los Anillos",
-                      "libro_id":"1",
-                      "autor":"J. R. R. Tolkien",
-                      "fecha_prestamo":"2025-10-10T09:00",
-                      "fecha_devolucion":"2025-10-17T09:00",
-                      "estado":"En Prestamo",
-                      "categoria_edad":"HA",
-                      "observaciones":"Lectura escolar",
-                      "creado_en":"2025-10-10 09:00",
-                      "modificado_en":"2025-10-10 09:00"
-                    }'
-                      data-bs-toggle="modal" data-bs-target="#ticketModal">
-                      <i class="fa-solid fa-pen-to-square"></i>
-                    </button>
-                    <button class="btn-action-del" onclick="onDeleteTicket(1,'BBPO-0001')">
-                      <i class="fa-solid fa-trash-can"></i>
-                    </button>
-                  </div>
+                <td colspan="9" class="px-3 py-4 text-center text-muted">
+                  No hay tiquetes para mostrar.
                 </td>
               </tr>
             <?php endif; ?>
           </tbody>
         </table>
       </div>
+
+      <!-- Controles paginación -->
+      <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between px-3 py-3 border-top">
+        <div class="small text-muted">
+          Página <strong id="pageInfo">1</strong>
+        </div>
+
+        <nav aria-label="Paginación de tiquetes">
+          <ul class="pagination mb-0" id="pagination"></ul>
+        </nav>
+      </div>
     </div>
   </main>
 
-  <!-- MODAL CREAR/EDITAR TIQUETE -->
-  <div class="modal fade modal-ticket" id="ticketModal" tabindex="-1" aria-labelledby="ticketModalLabel" aria-hidden="true">
+  <!-- MODAL CREAR TIQUETE (Replica Dashboard) -->
+  <div class="modal fade modal-ticket" id="ticketModal" tabindex="-1"
+    aria-labelledby="ticketModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
       <div class="modal-content">
         <div class="modal-header border-0 pb-0">
           <div>
-            <h5 class="modal-title brand-title" id="ticketModalLabel">Crear Nuevo Tiquete</h5>
+            <h5 class="modal-title brand-title" id="ticketModalLabel">Crear nuevo tiquete</h5>
             <div id="auditTicket" class="small text-muted d-none"></div>
           </div>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
         </div>
 
         <div class="modal-body">
-          <form id="ticketForm" class="needs-validation" novalidate>
-            <input type="hidden" id="ticketId" name="id">
-            <input type="hidden" name="_csrf" id="csrfField" value="<?= htmlspecialchars($csrf ?? '', ENT_QUOTES, 'UTF-8') ?>">
-            <input type="hidden" name="libro_id" id="libro_id">
-            <input type="hidden" name="cliente_id" id="cliente_id">
+          <form
+            id="ticketCreateForm"
+            class="needs-validation"
+            novalidate
+            method="post"
+            action="/tiquetes/create">
 
-            <div class="row g-3">
+            <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrf ?? '', ENT_QUOTES, 'UTF-8') ?>">
+            <input type="hidden" name="estado" value="En Prestamo">
 
-              <!-- Cliente -->
+            <div class="row g-3 mb-3">
               <div class="col-12 col-md-6">
-                <label for="cliente" class="form-label">Cliente</label>
+                <label for="tc_cliente" class="form-label">Nombre del cliente</label>
                 <input
-                  id="cliente"
+                  id="tc_cliente"
                   name="cliente"
                   type="text"
                   class="form-control"
-                  list="clientesOptions"
                   required
-                  placeholder="Nombre del cliente">
-                <datalist id="clientesOptions">
-                  <?php if (!empty($clientes) && is_array($clientes)): ?>
-                    <?php foreach ($clientes as $c): ?>
-                      <option value="<?= htmlspecialchars($c['nombre'], ENT_QUOTES, 'UTF-8') ?>"></option>
-                    <?php endforeach; ?>
-                  <?php endif; ?>
-                </datalist>
-                <div class="invalid-feedback">Selecciona el cliente.</div>
+                  placeholder="Nombre completo">
+                <div class="invalid-feedback">Ingresa el nombre del cliente.</div>
               </div>
 
-              <!-- Teléfono -->
-              <div class="col-12 col-md-3">
-                <label for="telefono" class="form-label">Teléfono</label>
+              <div class="col-12 col-md-6">
+                <label for="tc_telefono" class="form-label">Teléfono</label>
                 <input
-                  id="telefono"
+                  id="tc_telefono"
                   name="telefono"
                   type="text"
                   class="form-control"
                   placeholder="Ej. 8888-8888">
               </div>
+            </div>
 
-              <!-- Dirección -->
-              <div class="col-12 col-md-3">
-                <label for="direccion" class="form-label">Dirección</label>
-                <input
-                  id="direccion"
+            <div class="row g-3 mb-3">
+              <div class="col-12">
+                <label for="tc_direccion" class="form-label">Dirección</label>
+                <textarea
+                  id="tc_direccion"
                   name="direccion"
-                  type="text"
                   class="form-control"
-                  placeholder="Provincia, cantón, distrito">
+                  placeholder="Provincia, cantón, distrito"></textarea>
               </div>
+            </div>
 
-              <!-- Libro -->
+            <div class="row g-3 mb-3">
               <div class="col-12 col-md-6">
-                <label for="libro" class="form-label">Libro</label>
-                <input
-                  id="libro"
-                  name="libro"
-                  type="text"
-                  class="form-control"
-                  list="librosOptions"
-                  required
-                  placeholder="Título del libro">
-                <datalist id="librosOptions">
+                <label for="tc_libro_id" class="form-label">Libro</label>
+                <select
+                  id="tc_libro_id"
+                  name="libro_id"
+                  class="form-select"
+                  required>
+                  <option value=""></option>
+
                   <?php if (!empty($libros) && is_array($libros)): ?>
-                    <?php foreach ($libros as $l): ?>
-                      <option value="<?= htmlspecialchars($l['titulo'], ENT_QUOTES, 'UTF-8') ?>"></option>
+                    <?php foreach ($libros as $lib): ?>
+                      <?php
+                      $titulo  = (string)($lib['titulo'] ?? '');
+                      $autor   = (string)($lib['autor'] ?? '');
+                      $volumen = (string)($lib['volumen'] ?? '');
+                      $label   = $titulo;
+                      if ($volumen !== '') {
+                        $label .= ' · ' . $volumen;
+                      }
+                      ?>
+                      <option
+                        value="<?= htmlspecialchars((string)($lib['id'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
+                        data-titulo="<?= htmlspecialchars($titulo, ENT_QUOTES, 'UTF-8') ?>"
+                        data-autor="<?= htmlspecialchars($autor, ENT_QUOTES, 'UTF-8') ?>"
+                        data-volumen="<?= htmlspecialchars($volumen, ENT_QUOTES, 'UTF-8') ?>">
+                        <?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?>
+                      </option>
                     <?php endforeach; ?>
                   <?php endif; ?>
-                </datalist>
-                <div class="invalid-feedback">Selecciona el libro.</div>
+                </select>
+                <div class="invalid-feedback">Selecciona un libro.</div>
+
+                <!-- Hidden para título que espera el controlador -->
+                <input type="hidden" id="tc_libro_titulo" name="libro">
               </div>
 
-              <!-- Autor -->
               <div class="col-12 col-md-6">
-                <label for="autor" class="form-label">Autor</label>
-                <input id="autor" name="autor" type="text" class="form-control" placeholder="Autor del libro">
+                <label for="tc_autor" class="form-label">Autor</label>
+                <input
+                  id="tc_autor"
+                  name="autor"
+                  type="text"
+                  class="form-control"
+                  placeholder="">
               </div>
+            </div>
 
-              <!-- Categoría edad -->
+            <div class="row g-3 mb-3">
               <div class="col-12 col-md-6 col-lg-4">
-                <label for="categoria_edad" class="form-label">Categoría de edad</label>
-                <select id="categoria_edad" name="categoria_edad" class="form-select" required>
+                <label for="tc_categoria_edad" class="form-label">Categoría de edad</label>
+                <select id="tc_categoria_edad" name="categoria_edad" class="form-select" required>
                   <option value="" disabled selected>Selecciona...</option>
-
-                  <!-- 0 a 5 años -->
-                  <option value="OP">OP – (0 a 5 años)</option>
-                  <option value="AP">AP – (0 a 5 años)</option>
-
-                  <!-- 6 a 12 años -->
-                  <option value="O">O – (6 a 12 años)</option>
-                  <option value="A">A – (6 a 12 años)</option>
-
-                  <!-- 13 a 17 años -->
+                  <option value="OP">OP – Hombres (0 a 5 años)</option>
+                  <option value="AP">AP – Mujeres (0 a 5 años)</option>
+                  <option value="O">O – Hombres (6 a 12 años)</option>
+                  <option value="A">A – Mujeres (6 a 12 años)</option>
                   <option value="HJ">HJ – Hombres Jóvenes (13 a 17 años)</option>
                   <option value="MJ">MJ – Mujeres Jóvenes (13 a 17 años)</option>
-
-                  <!-- 18 a 35 años -->
                   <option value="HJU">HJU – Hombres Jóvenes Adultos (18 a 35 años)</option>
                   <option value="MJU">MJU – Mujeres Jóvenes Adultas (18 a 35 años)</option>
-
-                  <!-- 36 a 64 años -->
                   <option value="HA">HA – Hombres Adultos (36 a 64 años)</option>
                   <option value="MA">MA – Mujeres Adultas (36 a 64 años)</option>
-
-                  <!-- 65+ años -->
                   <option value="HAM">HAM – Hombres Adultos Mayores (65+ años)</option>
                   <option value="NAM">NAM – Mujeres Adultas Mayores (65+ años)</option>
                 </select>
-
                 <div class="invalid-feedback">Selecciona la categoría de edad.</div>
               </div>
 
-              <!-- Fechas -->
               <div class="col-12 col-md-6 col-lg-4">
-                <label for="fecha_prestamo" class="form-label">Fecha y hora de préstamo</label>
-                <input id="fecha_prestamo" name="fecha_prestamo" type="datetime-local" class="form-control" required>
-                <div class="invalid-feedback">Selecciona la fecha de préstamo.</div>
+                <label for="tc_fecha_prestamo" class="form-label">Fecha y hora de préstamo</label>
+                <input
+                  id="tc_fecha_prestamo"
+                  name="fecha_prestamo"
+                  type="datetime-local"
+                  class="form-control"
+                  required>
+                <div class="invalid-feedback">Ingresa la fecha de préstamo.</div>
               </div>
 
               <div class="col-12 col-md-6 col-lg-4">
-                <label for="fecha_devolucion" class="form-label">Fecha y hora de devolución</label>
-                <input id="fecha_devolucion" name="fecha_devolucion" type="datetime-local" class="form-control" required>
-                <div class="invalid-feedback">Selecciona la fecha de devolución.</div>
+                <label for="tc_fecha_devolucion" class="form-label">Fecha y hora de devolución</label>
+                <input
+                  id="tc_fecha_devolucion"
+                  name="fecha_devolucion"
+                  type="datetime-local"
+                  class="form-control"
+                  required>
+                <div class="invalid-feedback">Ingresa la fecha de devolución.</div>
               </div>
+            </div>
 
-              <!-- Estado -->
-              <div class="col-12 col-md-4">
-                <label for="estado" class="form-label">Estado</label>
-                <select id="estado" name="estado" class="form-select" required>
-                  <!-- Por defecto En Prestamo -->
-                  <option value="En Prestamo" selected>En préstamo</option>
-                  <option value="Devuelto">Devuelto</option>
-                  <option value="Retrasado">Retrasado</option>
-                </select>
-                <div class="invalid-feedback">Selecciona el estado.</div>
-              </div>
-
-              <!-- Observaciones -->
-              <div class="col-12 col-md-8">
-                <label for="observaciones" class="form-label">Observaciones</label>
-                <textarea id="observaciones" name="observaciones" class="form-control" rows="2" placeholder="Notas adicionales (opcional)"></textarea>
+            <div class="row g-3">
+              <div class="col-12">
+                <label for="tc_observaciones" class="form-label">Observaciones</label>
+                <textarea
+                  id="tc_observaciones"
+                  name="observaciones"
+                  class="form-control"
+                  rows="2"
+                  placeholder="Notas adicionales (opcional)"></textarea>
               </div>
             </div>
 
             <div class="d-flex justify-content-end gap-2 pt-3">
-              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-              <button type="submit" class="btn btn-accent">Guardar</button>
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                Cancelar
+              </button>
+              <button type="submit" class="btn btn-peach">
+                Guardar tiquete
+              </button>
             </div>
           </form>
         </div>
@@ -413,57 +455,15 @@
   <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
 
+  <!-- Tom Select JS -->
+  <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+
   <!-- Sidebar loader -->
   <script src="/assets/js/components.js"></script>
 
   <script>
     // Cargar sidebar
     loadComponent('#sidebar-container', '/components/sidebar.html');
-
-    // Pasar listas PHP -> JS
-    window.LIBROS = <?= json_encode($libros ?? [], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
-    window.CLIENTES = <?= json_encode($clientes ?? [], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
-
-    const libroInput = document.getElementById('libro');
-    const libroIdInput = document.getElementById('libro_id');
-    const autorInput = document.getElementById('autor');
-    const clienteInput = document.getElementById('cliente');
-    const clienteIdInput = document.getElementById('cliente_id');
-
-    function syncLibroFields() {
-      const titulo = (libroInput.value || '').toLowerCase().trim();
-      let found = window.LIBROS.find(l => (l.titulo || '').toLowerCase().trim() === titulo);
-
-      if (found) {
-        libroIdInput.value = found.id;
-        if (!autorInput.value) {
-          autorInput.value = found.autor || '';
-        }
-      } else {
-        // Si no coincide con ninguno, limpiamos el ID
-        libroIdInput.value = '';
-      }
-    }
-
-    function syncClienteFields() {
-      const nombre = (clienteInput.value || '').toLowerCase().trim();
-      let found = window.CLIENTES.find(c => (c.nombre || '').toLowerCase().trim() === nombre);
-
-      if (found) {
-        clienteIdInput.value = found.id;
-      } else {
-        clienteIdInput.value = '';
-      }
-    }
-
-    if (libroInput) {
-      libroInput.addEventListener('change', syncLibroFields);
-      libroInput.addEventListener('blur', syncLibroFields);
-    }
-    if (clienteInput) {
-      clienteInput.addEventListener('change', syncClienteFields);
-      clienteInput.addEventListener('blur', syncClienteFields);
-    }
 
     // Export
     document.getElementById('btnExportCsv')?.addEventListener('click', () => {
@@ -473,112 +473,343 @@
       window.location.href = '/tiquetes/export/xlsx';
     });
 
-    // Modal: alta/edición
-    const ticketModal = document.getElementById('ticketModal');
-    ticketModal.addEventListener('show.bs.modal', event => {
-      const btn = event.relatedTarget;
-      const form = document.getElementById('ticketForm');
-      const audit = document.getElementById('auditTicket');
-      const title = document.getElementById('ticketModalLabel');
+    // ----------------------------
+    // PAGINACIÓN + FILTRO POR MES/RANGO (FRONT)
+    // ----------------------------
+    const monthFilter     = document.getElementById('monthFilter');
+    const fromDate        = document.getElementById('fromDate');
+    const toDate          = document.getElementById('toDate');
+    const pageSizeSelect  = document.getElementById('pageSize');
 
-      form.reset();
-      form.classList.remove('was-validated');
-      audit.classList.add('d-none');
-      audit.textContent = '';
-      document.getElementById('ticketId').value = '';
-      document.getElementById('libro_id').value = '';
-      document.getElementById('cliente_id').value = '';
-      document.getElementById('telefono').value = '';
-      document.getElementById('direccion').value = '';
-      // Estado por defecto En Prestamo
-      document.getElementById('estado').value = 'En Prestamo';
+    const table           = document.getElementById('ticketsTable');
+    const tbody           = table ? table.querySelector('tbody') : null;
 
-      title.textContent = 'Crear Nuevo Tiquete';
+    const totalRowsEl     = document.getElementById('totalRows');
+    const paginationEl    = document.getElementById('pagination');
+    const pageInfoEl      = document.getElementById('pageInfo');
 
-      if (btn && btn.dataset.ticket) {
-        const data = JSON.parse(btn.dataset.ticket);
+    let currentPage = 1;
+    let pageSize = 10;
 
-        title.textContent = `Editar Tiquete ${data.codigo || data.id || ''}`;
+    function getAllRows() {
+      if (!tbody) return [];
+      return Array.from(tbody.querySelectorAll('tr[data-row]'))
+        .filter(tr => tr.querySelectorAll('td').length > 0); // excluye fila "no hay"
+    }
 
-        document.getElementById('ticketId').value = data.id || '';
-        document.getElementById('libro_id').value = data.libro_id || '';
-        document.getElementById('cliente_id').value = data.cliente_id || '';
-        document.getElementById('cliente').value = data.cliente || '';
-        document.getElementById('telefono').value = data.telefono || '';
-        document.getElementById('direccion').value = data.direccion || '';
-        document.getElementById('libro').value = data.libro || '';
-        document.getElementById('autor').value = data.autor || '';
-        document.getElementById('fecha_prestamo').value = data.fecha_prestamo || '';
-        document.getElementById('fecha_devolucion').value = data.fecha_devolucion || '';
-        document.getElementById('estado').value = data.estado || 'En Prestamo';
-        document.getElementById('categoria_edad').value = data.categoria_edad || '';
-        document.getElementById('observaciones').value = data.observaciones || '';
+    function parseISODateOnly(s) {
+      // Espera "YYYY-MM-DD"
+      if (!s || typeof s !== 'string' || s.length < 10) return null;
+      const y = parseInt(s.slice(0,4), 10);
+      const m = parseInt(s.slice(5,7), 10);
+      const d = parseInt(s.slice(8,10), 10);
+      if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return null;
+      // Date en UTC para comparar sin líos de zona horaria
+      return new Date(Date.UTC(y, m-1, d, 0, 0, 0));
+    }
 
-        const creado = data.creado_en ? `Creado: ${data.creado_en}` : '';
-        const modif = data.modificado_en ? ` · Modificado: ${data.modificado_en}` : '';
-        if (creado || modif) {
-          audit.textContent = `${creado}${modif}`;
-          audit.classList.remove('d-none');
+    function rowMatchesDateFilters(tr) {
+      const fp = (tr.getAttribute('data-fecha-prestamo') || '').trim(); // YYYY-MM-DD
+      const fpDt = parseISODateOnly(fp);
+      if (!fpDt) return true; // si no hay fecha, no filtramos esa fila
+
+      const fromVal = (fromDate?.value || '').trim(); // YYYY-MM-DD
+      const toVal   = (toDate?.value || '').trim();   // YYYY-MM-DD
+      const monthVal = (monthFilter?.value || '').trim(); // YYYY-MM
+
+      // Si hay rango (desde/hasta), prioriza el rango
+      if (fromVal || toVal) {
+        const fromDt = fromVal ? parseISODateOnly(fromVal) : null;
+        const toDt   = toVal ? parseISODateOnly(toVal) : null;
+
+        if (fromDt && fpDt < fromDt) return false;
+        if (toDt) {
+          // incluye el día completo "hasta"
+          const toEnd = new Date(Date.UTC(toDt.getUTCFullYear(), toDt.getUTCMonth(), toDt.getUTCDate(), 23, 59, 59));
+          if (fpDt > toEnd) return false;
         }
+        return true;
       }
+
+      // Si NO hay rango, y hay mes seleccionado => filtra por mes
+      if (monthVal) {
+        // monthVal: "YYYY-MM"
+        const ym = monthVal;
+        return fp.slice(0, 7) === ym;
+      }
+
+      // Sin filtros
+      return true;
+    }
+
+    function getFilteredRows() {
+      const rows = getAllRows();
+      return rows.filter(tr => rowMatchesDateFilters(tr));
+    }
+
+    function clampPage(page, totalPages) {
+      if (totalPages <= 1) return 1;
+      if (page < 1) return 1;
+      if (page > totalPages) return totalPages;
+      return page;
+    }
+
+    function makePageItem(page, current) {
+      const li = document.createElement('li');
+      li.className = 'page-item' + (page === current ? ' active' : '');
+      li.innerHTML = `<a class="page-link" href="#">${page}</a>`;
+      li.addEventListener('click', (e) => {
+        e.preventDefault();
+        currentPage = page;
+        applyFilterAndPagination();
+      });
+      return li;
+    }
+
+    function makeEllipsis() {
+      const li = document.createElement('li');
+      li.className = 'page-item disabled';
+      li.innerHTML = `<span class="page-link">…</span>`;
+      return li;
+    }
+
+    function renderPagination(totalItems) {
+      const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+      currentPage = clampPage(currentPage, totalPages);
+
+      paginationEl.innerHTML = '';
+
+      // Prev
+      const liPrev = document.createElement('li');
+      liPrev.className = 'page-item' + (currentPage === 1 ? ' disabled' : '');
+      liPrev.innerHTML = `<a class="page-link" href="#" aria-label="Anterior">&laquo;</a>`;
+      liPrev.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (currentPage === 1) return;
+        currentPage--;
+        applyFilterAndPagination();
+      });
+      paginationEl.appendChild(liPrev);
+
+      const windowSize = 5;
+      const half = Math.floor(windowSize / 2);
+      let start = Math.max(1, currentPage - half);
+      let end = Math.min(totalPages, start + windowSize - 1);
+      start = Math.max(1, end - windowSize + 1);
+
+      if (start > 1) {
+        paginationEl.appendChild(makePageItem(1, currentPage));
+        if (start > 2) paginationEl.appendChild(makeEllipsis());
+      }
+
+      for (let p = start; p <= end; p++) {
+        paginationEl.appendChild(makePageItem(p, currentPage));
+      }
+
+      if (end < totalPages) {
+        if (end < totalPages - 1) paginationEl.appendChild(makeEllipsis());
+        paginationEl.appendChild(makePageItem(totalPages, currentPage));
+      }
+
+      // Next
+      const liNext = document.createElement('li');
+      liNext.className = 'page-item' + (currentPage === totalPages ? ' disabled' : '');
+      liNext.innerHTML = `<a class="page-link" href="#" aria-label="Siguiente">&raquo;</a>`;
+      liNext.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (currentPage === totalPages) return;
+        currentPage++;
+        applyFilterAndPagination();
+      });
+      paginationEl.appendChild(liNext);
+
+      pageInfoEl.textContent = `${currentPage} de ${totalPages}`;
+    }
+
+    function applyFilterAndPagination() {
+      const allRows = getAllRows();
+      const filtered = getFilteredRows();
+
+      // Oculta todas
+      allRows.forEach(tr => tr.style.display = 'none');
+
+      const totalItems = filtered.length;
+      const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+      currentPage = clampPage(currentPage, totalPages);
+
+      const startIdx = (currentPage - 1) * pageSize;
+      const endIdx = startIdx + pageSize;
+      const pageRows = filtered.slice(startIdx, endIdx);
+
+      pageRows.forEach(tr => tr.style.display = '');
+
+      totalRowsEl.textContent = String(totalItems);
+      renderPagination(totalItems);
+    }
+
+    // Eventos filtros
+    monthFilter?.addEventListener('change', () => {
+      // Si eligen mes, limpiamos rango para evitar confusión
+      if (monthFilter.value) {
+        if (fromDate) fromDate.value = '';
+        if (toDate) toDate.value = '';
+      }
+      currentPage = 1;
+      applyFilterAndPagination();
     });
 
-    // Submit (create/update via fetch, respetando redirecciones del backend)
-    document.getElementById('ticketForm').addEventListener('submit', async e => {
-      e.preventDefault();
-      const form = e.target;
-
-      if (!form.checkValidity()) {
-        e.stopPropagation();
-        form.classList.add('was-validated');
-        Swal.fire({
-          icon: 'warning',
-          title: 'Revisa los campos',
-          confirmButtonColor: '#ec6d13'
-        });
-        return;
+    fromDate?.addEventListener('change', () => {
+      // Si usan rango, limpiamos mes
+      if (fromDate.value || (toDate && toDate.value)) {
+        if (monthFilter) monthFilter.value = '';
       }
+      currentPage = 1;
+      applyFilterAndPagination();
+    });
 
-      const isEdit = !!document.getElementById('ticketId').value;
-      const url = isEdit ? '/tiquetes/update' : '/tiquetes/create';
+    toDate?.addEventListener('change', () => {
+      if ((fromDate && fromDate.value) || toDate.value) {
+        if (monthFilter) monthFilter.value = '';
+      }
+      currentPage = 1;
+      applyFilterAndPagination();
+    });
 
-      const fd = new FormData(form);
+    pageSizeSelect?.addEventListener('change', () => {
+      const val = parseInt(pageSizeSelect.value, 10);
+      pageSize = Number.isFinite(val) && val > 0 ? val : 10;
+      currentPage = 1;
+      applyFilterAndPagination();
+      try { localStorage.setItem('tickets_page_size', pageSizeSelect.value); } catch (_) {}
+    });
 
+    (function initPagination() {
       try {
-        const rsp = await fetch(url, {
-          method: 'POST',
-          body: fd
-        });
-
-        // Si el backend redirige: asumimos éxito normal
-        if (rsp.redirected) {
-          window.location.href = rsp.url;
-          return;
+        const saved = localStorage.getItem('tickets_page_size');
+        if (saved) {
+          const s = parseInt(saved, 10);
+          if (Number.isFinite(s) && s > 0) {
+            pageSize = s;
+            pageSizeSelect.value = String(s);
+          }
         }
+      } catch (_) {}
 
-        // Si NO hay redirect, asumimos que vino un JSON con error (por ejemplo libro no disponible)
-        let data = null;
-        try {
-          data = await rsp.json();
-        } catch (_) {
-          // nada
+      // Sugerencia útil: por defecto, setear mes actual automáticamente
+      // (si no quieres esto, comenta estas líneas)
+      try {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        // monthFilter.value = `${y}-${m}`; // descomentá si querés iniciar filtrado al mes actual
+      } catch (_) {}
+
+      applyFilterAndPagination();
+    })();
+
+    // ----------------------------
+    // MODAL CREAR (igual que tenías)
+    // ----------------------------
+
+    // Prefill fechas del modal de creación (igual que Dashboard)
+    (function() {
+      const fp = document.getElementById('tc_fecha_prestamo');
+      const fd = document.getElementById('tc_fecha_devolucion');
+      if (!fp || !fd) return;
+
+      const pad = n => String(n).padStart(2, '0');
+      const toLocal = d =>
+        `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+      const now = new Date();
+      const in7 = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+      fp.value = toLocal(now);
+      fd.value = toLocal(in7);
+
+      fp.addEventListener('change', () => {
+        if (!fp.value) return;
+        if (fd.value < fp.value) fd.value = fp.value;
+      });
+    })();
+
+    // TomSelect para libros (igual que Dashboard)
+    (function() {
+      const sel = document.getElementById('tc_libro_id');
+      if (!sel || sel.tomselect) return;
+
+      const ts = new TomSelect(sel, {
+        create: false,
+        allowEmptyOption: true,
+        placeholder: 'Selecciona un libro disponible…',
+        searchField: ['text'],
+        maxOptions: 5000,
+        closeAfterSelect: true,
+        openOnFocus: true,
+        items: [],
+        onInitialize: function() {
+          this.clear(true);
         }
+      });
 
-        await Swal.fire({
-          icon: 'error',
-          title: data && data.message ? data.message : 'No se pudo guardar el tiquete.',
-          confirmButtonColor: '#ec6d13'
-        });
+      ts.on('focus', () => {
+        ts.open();
+        ts.control_input.value = '';
+      });
+    })();
 
-      } catch (err) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: (err && err.message) ? err.message : 'Error inesperado',
-          confirmButtonColor: '#ec6d13'
+    // Libro -> título (hidden) y autor (input) (igual que Dashboard)
+    (function() {
+      const sel = document.getElementById('tc_libro_id');
+      const tituloHidden = document.getElementById('tc_libro_titulo');
+      const autorInput = document.getElementById('tc_autor');
+      if (!sel) return;
+
+      const syncFromOption = () => {
+        const opt = sel.selectedOptions && sel.selectedOptions[0] ? sel.selectedOptions[0] : null;
+        if (!opt) return;
+
+        const titulo = opt.getAttribute('data-titulo') || '';
+        const autor = opt.getAttribute('data-autor') || '';
+
+        if (tituloHidden) tituloHidden.value = titulo;
+        if (autorInput && autor !== '') autorInput.value = autor;
+      };
+
+      sel.addEventListener('change', syncFromOption);
+
+      const modal = document.getElementById('ticketModal');
+      if (modal) {
+        modal.addEventListener('shown.bs.modal', () => {
+          document.getElementById('ticketModalLabel').textContent = 'Crear nuevo tiquete';
+          document.getElementById('auditTicket').classList.add('d-none');
+          document.getElementById('auditTicket').textContent = '';
+          syncFromOption();
+
+          const cliente = document.getElementById('tc_cliente');
+          if (cliente) cliente.focus();
         });
       }
-    });
+    })();
+
+    // Validación form creación (igual que Dashboard)
+    (function() {
+      const form = document.getElementById('ticketCreateForm');
+      if (!form) return;
+
+      form.addEventListener('submit', function(e) {
+        if (!form.checkValidity()) {
+          e.preventDefault();
+          e.stopPropagation();
+          form.classList.add('was-validated');
+          Swal.fire({
+            icon: 'warning',
+            title: 'Revisa los campos',
+            confirmButtonColor: '#ec6d13'
+          });
+        }
+      });
+    })();
 
     // Eliminar tiquete
     async function onDeleteTicket(id, codigo) {
@@ -596,7 +827,6 @@
 
       const fd = new FormData();
       fd.append('id', String(id));
-      fd.append('_csrf', document.getElementById('csrfField').value);
 
       try {
         const rsp = await fetch('/tiquetes/delete', {
